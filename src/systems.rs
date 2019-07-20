@@ -1,5 +1,12 @@
-use crate::components::*;
-use quicksilver::geom::Vector;
+use crate::{components::*, resources::*};
+
+use quicksilver::{
+    geom::{Rectangle, Vector},
+    graphics::{Background::Col, Color},
+    lifecycle::Window,
+    Result,
+};
+
 use specs::prelude::*;
 use specs_derive::Component;
 
@@ -38,14 +45,25 @@ impl<'a> System<'a> for Update {
     }
 }
 
-struct Render;
+struct Render<'a> {
+    window: &'a mut Window,
+}
 
-impl<'a> System<'a> for Render {
+impl<'a> Render<'a> {
+    fn new(window: &'a mut Window) -> Self {
+        Self { window }
+    }
+}
+
+impl<'a, 'b> System<'a> for Render<'b> {
     type SystemData = (Entities<'a>, ReadStorage<'a, Pos>);
 
     fn run(&mut self, (e, pos): Self::SystemData) {
+        self.window.clear(Color::WHITE).unwrap();
+
         for (e, pos) in (&e, &pos).join() {
-            // TODO: Render
+            self.window
+                .draw(&Rectangle::new(pos.0, (50, 50)), Col(Color::RED));
         }
     }
 }
@@ -77,44 +95,57 @@ pub fn run_world() {
     }
 }
 
-pub struct Systems<'a, 'b> {
-    ctx: Option<(World, Dispatcher<'a, 'b>)>,
+pub struct Systems {
+    world: World,
 }
 
-impl<'a, 'b> Systems<'a, 'b> {
+impl Systems {
     pub fn new() -> Self {
         let mut world = World::new();
 
-        let mut dispatcher = DispatcherBuilder::new()
-            .with(Print, "preprint", &[])
-            .with(Update, "update", &["preprint"])
-            .with(Render, "render", &["update"])
-            .with(Spawn, "spawn", &["update"])
-            .with(Print, "postprint", &["spawn"])
+        world.register::<Pos>();
+        world.register::<Vel>();
+        world.register::<Acc>();
+        world.register::<Player>();
+        world.register::<Enemy>();
+        world.register::<Gun>();
+        world.register::<Bullet>();
+        world.register::<Landmark>();
+        world.add_resource(Action::default());
+
+        world
+            .create_entity()
+            .with(Vel::new(1.0, 2.0))
+            .with(Pos::new(3.0, 3.0))
             .build();
-
-        dispatcher.setup(&mut world);
-
         world
             .create_entity()
             .with(Vel::new(2.0, 0.0))
             .with(Pos::new(0.0, 0.0))
             .build();
-        world.create_entity().with(Pos::new(2.0, 0.0)).build();
+        world
+            .create_entity()
+            .with(Acc::new(0.1, 0.1))
+            .with(Vel::new(2.0, 0.0))
+            .with(Pos::new(0.0, 0.0))
+            .build();
+        world.create_entity().with(Pos::new(10.0, 10.0)).build();
 
-        Self {
-            ctx: Some((world, dispatcher)),
-        }
+        Self { world }
     }
 
     pub fn world(&self) -> &World {
-        &self.ctx.as_ref().unwrap().0
+        &self.world
     }
 
     pub fn update(&mut self) {
-        let (mut world, mut dispatcher) = self.ctx.take().unwrap();
-        dispatcher.dispatch(&world);
-        world.maintain();
-        self.ctx.replace((world, dispatcher));
+        Print.run_now(&mut self.world);
+        Update.run_now(&mut self.world);
+        Spawn.run_now(&mut self.world);
+        Print.run_now(&mut self.world);
+    }
+
+    pub fn render(&mut self, window: &mut Window) {
+        Render::new(window).run_now(&mut self.world);
     }
 }

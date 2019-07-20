@@ -1,4 +1,4 @@
-use crate::systems::Systems;
+use crate::{resources::*, systems::Systems};
 
 use quicksilver::{
     geom::{Circle, Line, Rectangle, Transform, Triangle, Vector},
@@ -7,24 +7,43 @@ use quicksilver::{
     lifecycle::{run, Event, Settings, State, Window},
     Result,
 };
+use specs::prelude::*;
 use std::collections::BTreeMap;
 
-struct DrawGeometry<'a, 'b> {
-    sys: Systems<'a, 'b>,
+struct Screen {
+    sys: Systems,
 }
 
-impl<'a, 'b> State for DrawGeometry<'a, 'b> {
-    fn new(sys: Systems<'a, 'b>) -> Result<DrawGeometry<'a, 'b>> {
-        Ok(DrawGeometry { sys })
+impl State for Screen {
+    fn new() -> Result<Screen> {
+        Ok(Screen {
+            sys: Systems::new(),
+        })
+    }
+
+    fn update(&mut self, _: &mut Window) -> Result<()> {
+        self.sys.update();
+        Ok(())
     }
 
     fn event(&mut self, event: &Event, window: &mut Window) -> Result<()> {
+        let mut action = self.sys.world().write_resource::<Action>();
+
         match *event {
             Event::Key(Key::Left, ButtonState::Pressed) => {
-                // Update sys.world()
+                action.left = true;
             }
             Event::Key(Key::Right, ButtonState::Pressed) => {
-                // Update sys.world()
+                action.right = true;
+            }
+            Event::Key(Key::Up, ButtonState::Pressed) => {
+                action.jump = true;
+            }
+            Event::Key(Key::Z, ButtonState::Pressed) => {
+                action.take = true;
+            }
+            Event::Key(Key::X, ButtonState::Pressed) => {
+                action.drop = true;
             }
             Event::Key(Key::Escape, ButtonState::Pressed) => {
                 window.close();
@@ -35,12 +54,11 @@ impl<'a, 'b> State for DrawGeometry<'a, 'b> {
     }
 
     fn draw(&mut self, window: &mut Window) -> Result<()> {
-        window.clear(Color::WHITE)?;
-        window.draw(&Rectangle::new((400, 300), (50, 50)), Col(Color::RED));
+        self.sys.render(window);
         Ok(())
     }
 }
 
-pub fn run_chintama() {
-    run::<DrawGeometry>("Draw Geometry", Vector::new(800, 600), Settings::default());
+pub fn run_gui() {
+    run::<Screen>("Draw Geometry", Vector::new(800, 600), Settings::default());
 }

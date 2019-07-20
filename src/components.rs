@@ -66,7 +66,7 @@ pub struct Gun {
 }
 
 #[derive(Component, Debug, Serialize, Deserialize)]
-pub struct Bullets {
+pub struct Bullet {
     pub class: Class,
 }
 
