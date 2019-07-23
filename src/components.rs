@@ -90,10 +90,15 @@ pub struct Landmark {
 }
 
 #[derive(Component, Clone, Debug, Serialize, Deserialize)]
-pub struct Block(pub Rectangle);
+pub struct Block;
 
-impl Block {
-    pub fn new(x: f32, y: f32, w: f32, h: f32) -> Self {
-        Block(Rectangle::new(Vector::new(x, y), Vector::new(w, h)))
+#[derive(Component, Clone, Debug, Serialize, Deserialize)]
+pub struct Collide {
+    pub pos: Option<(Vector, f32)>,
+}
+
+impl Collide {
+    pub fn new() -> Self {
+        Self { pos: None }
     }
 }
