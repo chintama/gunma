@@ -1,5 +1,9 @@
 use crate::{components::*, resources::*};
-use ncollide2d::{math::Isometry, query::time_of_impact};
+use ncollide2d::{
+    math::Isometry,
+    query::{contact, time_of_impact},
+};
+use std::collections::HashMap;
 
 use quicksilver::{
     geom::{Rectangle, Shape, Vector},
@@ -18,7 +22,7 @@ impl<'a> System<'a> for Print {
 
     fn run(&mut self, (e, pos): Self::SystemData) {
         for (e, pos) in (&e, &pos).join() {
-            // println!("{:?}: pos={:?}", e, pos);
+            println!("{:?}: pos={:?}", e, pos);
         }
     }
 }
@@ -31,32 +35,30 @@ impl<'a> System<'a> for Input {
         Write<'a, Action>,
         ReadStorage<'a, Player>,
         ReadStorage<'a, Pos>,
+        ReadStorage<'a, Size>,
         WriteStorage<'a, Vel>,
-        ReadStorage<'a, Collide>,
+        WriteStorage<'a, Dir>,
         Read<'a, LazyUpdate>,
     );
 
-    fn run(&mut self, (e, mut act, player, pos, mut vel, col, lazy): Self::SystemData) {
-        for (_, pos, vel, col) in (&player, &pos, &mut vel, &col).join() {
-            let movable = col.pos.map(|(_, toi)| toi == 0.0).unwrap_or(true);
-
-            if !movable {
-                continue;
-            }
-
+    fn run(&mut self, (e, mut act, player, pos, siz, mut vel, mut dir, lazy): Self::SystemData) {
+        for (_, pos, siz, vel, dir) in (&player, &pos, &siz, &mut vel, &mut dir).join() {
             if act.jump {
                 vel.0.y = 5.0;
             }
             if act.right {
                 vel.0.x = 5.0;
+                dir.0 = 1.0;
             }
             if act.left {
                 vel.0.x = -5.0;
+                dir.0 = -1.0;
             }
             if act.take {
+                let d = if dir.0 > 0.0 { siz.0.x } else { -10.0 };
                 lazy.create_entity(&e)
-                    .with(Vel::new(10.0, 0.0))
-                    .with(pos.clone())
+                    .with(Vel::new(10.0 * dir.0, 0.0))
+                    .with(Pos(pos.0 + Vector::new(d, 0.0)))
                     .with(Acc::zero())
                     .with(Bullet { class: CLASS_CHIBA })
                     .with(Size::new(10.0, 10.0))
@@ -68,55 +70,131 @@ impl<'a> System<'a> for Input {
     }
 }
 
+struct UpdateVel;
+
+impl<'a> System<'a> for UpdateVel {
+    type SystemData = (WriteStorage<'a, Vel>, ReadStorage<'a, Acc>);
+
+    fn run(&mut self, (mut vel, acc): Self::SystemData) {
+        for (vel, acc) in (&mut vel, &acc).join() {
+            vel.0 += acc.0;
+        }
+    }
+}
+
 struct UpdateCollide;
+
+fn toi(p1: &Pos, s1: &Size, v1: &Vel, p2: &Pos, s2: &Size, v2: &Vel) -> f32 {
+    let m1 = p1.0 + s1.0 / 2.0;
+    let m1 = Isometry::translation(m1.x, m1.y);
+    let c1 = Rectangle::new_sized(s1.0).into_cuboid();
+    let v1 = v1.0.into_vector();
+
+    let m2 = p2.0 + s2.0 / 2.0;
+    let m2 = Isometry::translation(m2.x, m2.y);
+    let c2 = Rectangle::new_sized(s2.0).into_cuboid();
+    let v2 = v2.0.into_vector();
+
+    time_of_impact(&m1, &v1, &c1, &m2, &v2, &c2)
+        .unwrap_or(1.0)
+        .min(1.0)
+}
+
+fn normal(p1: &Pos, s1: &Size, p2: &Pos, s2: &Size) -> Option<Vector> {
+    let m1 = p1.0 + s1.0 / 2.0;
+    let m1 = Isometry::translation(m1.x, m1.y);
+    let c1 = Rectangle::new_sized(s1.0).into_cuboid();
+
+    let m2 = p2.0 + s2.0 / 2.0;
+    let m2 = Isometry::translation(m2.x, m2.y);
+    let c2 = Rectangle::new_sized(s2.0).into_cuboid();
+
+    contact(&m1, &c1, &m2, &c2, 3.0).map(|c| {
+        let x = c.normal.as_ref()[0].round();
+        let y = c.normal.as_ref()[1].round();
+        Vector::new(x, y)
+    })
+}
+
+fn cease_vel(p1: &Pos, s1: &Size, v1: &Vel, p2: &Pos, s2: &Size) -> Vel {
+    let mut vel = v1.clone();
+
+    let vel = match normal(p1, s1, p2, s2) {
+        Some(n) => {
+            let mut v = v1.clone();
+
+            if n.x * v1.0.x > 0.0 {
+                v.0.x = 0.0;
+            }
+            if n.y * v1.0.y > 0.0 {
+                v.0.x *= 0.9;
+                v.0.y = 0.0;
+            }
+
+            v
+        }
+        None => Vel::zero(),
+    };
+
+    vel
+}
+
+fn update_vel(p1: &Pos, s1: &Size, v1: &Vel, p2: &Pos, s2: &Size, v2: &Vel) -> (Vel, Vel) {
+    let toi = toi(p1, s1, v1, p2, s2, v2);
+
+    if toi == 0.0 {
+        (cease_vel(p1, s1, v1, p2, s2), cease_vel(p2, s2, v2, p1, s1))
+    } else {
+        (Vel(v1.0 * toi), Vel(v2.0 * toi))
+    }
+}
+
+fn min(v1: &Vel, v2: &Vel) -> Vel {
+    let len = |p: &Vel| p.0.x * p.0.x + p.0.y * p.0.y;
+
+    if len(v1) < len(v2) {
+        v1.clone()
+    } else {
+        v2.clone()
+    }
+}
 
 impl<'a> System<'a> for UpdateCollide {
     type SystemData = (
         Entities<'a>,
         ReadStorage<'a, Pos>,
         ReadStorage<'a, Size>,
-        ReadStorage<'a, Vel>,
-        WriteStorage<'a, Collide>,
+        WriteStorage<'a, Vel>,
+        ReadStorage<'a, Player>,
+        ReadStorage<'a, Block>,
     );
 
-    fn run(&mut self, (e, pos, siz, vel, mut col): Self::SystemData) {
-        for (e1, pos1, siz1, vel1, col) in (&e, &pos, &siz, &vel, &mut col).join() {
-            for (e2, pos2, siz2, vel2) in (&e, &pos, &siz, &vel).join() {
-                if e1 == e2 {
-                    continue;
+    fn run(&mut self, (e, pos, siz, mut vel, ply, blk): Self::SystemData) {
+        let mut map = HashMap::<_, Vel>::new();
+
+        for (e1, p1, s1, v1, _) in (&e, &pos, &siz, &vel, &ply).join() {
+            for (e2, p2, s2, v2, _) in (&e, &pos, &siz, &vel, &blk).join() {
+                let (v1, v2) = update_vel(p1, s1, v1, p2, s2, v2);
+
+                if let Some(vel) = map.get_mut(&e1) {
+                    *vel = min(vel, &v1);
+                } else {
+                    map.insert(e1, v1);
                 }
+                if let Some(vel) = map.get_mut(&e2) {
+                    *vel = min(vel, &v2);
+                } else {
+                    map.insert(e2, v2);
+                }
+            }
+        }
 
-                let p1 = Isometry::identity();
-                let c1 = Rectangle::new_sized(siz1.0).into_cuboid();
-                let v1 = vel1.0.into_vector();
-
-                let df = (pos2.0 - pos1.0) + (siz2.0 - siz1.0) / 2.0;
-                let p2 = Isometry::translation(df.x, df.y);
-                let c2 = Rectangle::new_sized(siz2.0).into_cuboid();
-                let v2 = vel2.0.into_vector();
-
-                let colpos = time_of_impact(&p1, &v1, &c1, &p2, &v2, &c2).and_then(|toi| {
-                    if toi <= 1.0 {
-                        let vel = Vector::new(vel1.0.x * toi, vel1.0.y * toi);
-                        Some((pos1.0 + vel, toi))
-                    } else {
-                        None
-                    }
-                });
-
-                col.pos = col
-                    .pos
-                    .and_then(|c1| {
-                        let c2 = colpos?;
-
-                        if c1.1 < c2.1 {
-                            Some(c1)
-                        } else {
-                            Some(c2)
-                        }
-                    })
-                    .or(col.pos)
-                    .or(colpos);
+        for (e, v) in map {
+            match vel.get_mut(e) {
+                Some(vel) => {
+                    *vel = v;
+                }
+                None => {}
             }
         }
     }
@@ -125,33 +203,11 @@ impl<'a> System<'a> for UpdateCollide {
 struct UpdatePos;
 
 impl<'a> System<'a> for UpdatePos {
-    type SystemData = (
-        Entities<'a>,
-        WriteStorage<'a, Pos>,
-        ReadStorage<'a, Size>,
-        WriteStorage<'a, Vel>,
-        WriteStorage<'a, Acc>,
-        WriteStorage<'a, Collide>,
-    );
+    type SystemData = (WriteStorage<'a, Pos>, WriteStorage<'a, Vel>);
 
-    fn run(&mut self, (e, mut pos, siz, mut vel, mut acc, mut col): Self::SystemData) {
-        for (e, pos, siz, vel, acc) in (&e, &mut pos, &siz, &mut vel, &mut acc).join() {
-            // Update location based on client predicition
-
-            pos.0 = col
-                .get_mut(e)
-                .and_then(|c| c.pos.take())
-                .map(|(p, t)| {
-                    *vel = Vel::zero();
-                    p
-                })
-                .unwrap_or_else(|| {
-                    let newpos = pos.0 + vel.0;
-                    vel.0 += acc.0;
-                    newpos
-                });
-
-            // TODO: Check server reconciliation result
+    fn run(&mut self, (mut pos, vel): Self::SystemData) {
+        for (pos, vel) in (&mut pos, &vel).join() {
+            pos.0 += vel.0;
         }
     }
 }
@@ -174,9 +230,10 @@ impl<'a, 'b> System<'a> for Render<'b> {
         ReadStorage<'a, Bullet>,
         ReadStorage<'a, Block>,
         ReadStorage<'a, Player>,
+        ReadStorage<'a, Dir>,
     );
 
-    fn run(&mut self, (e, pos, siz, bullet, block, player): Self::SystemData) {
+    fn run(&mut self, (e, pos, siz, bullet, block, player, dir): Self::SystemData) {
         self.window.clear(Color::WHITE).unwrap();
 
         let size = self.window.screen_size();
@@ -198,6 +255,16 @@ impl<'a, 'b> System<'a> for Render<'b> {
             };
 
             drw(pos.0, siz.0, col);
+
+            if player.get(e).is_some() {
+                let d = dir.get(e).unwrap_or(&Dir(1.0));
+                let d = if d.0 > 0.0 { siz.0.x } else { -10.0 };
+                drw(
+                    pos.0 + Vector::new(d, 0.0),
+                    Vector::new(10.0, 10.0),
+                    Col(Color::BLACK),
+                );
+            }
         }
     }
 }
@@ -240,44 +307,58 @@ impl Systems {
         world.register::<Bullet>();
         world.register::<Landmark>();
         world.register::<Block>();
-        world.register::<Collide>();
+        world.register::<Dir>();
         world.insert(Action::default());
 
-        // for i in 0..10 {
-        //     world
-        //         .create_entity()
-        //         .with(Vel::new(1.0, 2.0))
-        //         .with(Pos::new(100.0, 100.0 * i as f32))
-        //         .with(Acc::new(0.0, -0.05))
-        //         .with(Size::new(10.0, 10.0))
-        //         .with(Collide::new())
-        //         .build();
-        //     world
-        //         .create_entity()
-        //         .with(Vel::new(1.0, 0.1 * i as f32))
-        //         .with(Pos::new(100.0, 120.0 * i as f32))
-        //         .with(Acc::new(0.0, -0.02))
-        //         .with(Size::new(12.0, 12.0))
-        //         .with(Collide::new())
-        //         .build();
-        // }
+        for i in 0..10 {
+            world
+                .create_entity()
+                .with(Vel::new(1.0, 2.0))
+                .with(Pos::new(160.0, 100.0 * i as f32))
+                .with(Acc::new(0.0, -0.05))
+                .with(Size::new(10.0, 10.0))
+                .build();
+            world
+                .create_entity()
+                .with(Vel::new(1.0, 0.1 * i as f32))
+                .with(Pos::new(180.0, 120.0 * i as f32))
+                .with(Acc::new(0.0, -0.02))
+                .with(Size::new(12.0, 12.0))
+                .build();
+        }
 
         world
             .create_entity()
-            .with(Acc::new(0.0, -0.1))
-            .with(Vel::new(3.0, 5.0))
-            .with(Pos::new(200.0, 200.0))
-            .with(Size::new(20.0, 20.0))
-            .with(Collide::new())
-            .build();
-        world
-            .create_entity()
-            .with(Pos::new(100.0, 500.0))
-            .with(Size::new(10.0, 30.0))
+            .with(Pos::new(150.0, 500.0))
+            .with(Size::new(30.0, 50.0))
             .with(Vel::zero())
             .with(Acc::new(0.0, -0.15))
             .with(Player { lives: 100 })
-            .with(Collide::new())
+            .with(Dir(1.0))
+            .build();
+        world
+            .create_entity()
+            .with(Pos::new(300.0, 500.0))
+            .with(Size::new(800.0, 150.0))
+            .with(Acc::new(0.0, 0.0))
+            .with(Vel::zero())
+            .with(Block)
+            .build();
+        world
+            .create_entity()
+            .with(Pos::new(600.0, 350.0))
+            .with(Size::new(400.0, 100.0))
+            .with(Acc::new(0.0, 0.0))
+            .with(Vel::zero())
+            .with(Block)
+            .build();
+        world
+            .create_entity()
+            .with(Pos::new(400.0, 200.0))
+            .with(Size::new(300.0, 50.0))
+            .with(Acc::new(0.0, 0.0))
+            .with(Vel::zero())
+            .with(Block)
             .build();
         world
             .create_entity()
@@ -285,17 +366,15 @@ impl Systems {
             .with(Acc::new(0.0, 0.0))
             .with(Vel::new(0.0, 0.0))
             .with(Pos::new(0.0, 0.0))
-            .with(Size::new(1000.0, 20.0))
-            .with(Collide::new())
+            .with(Size::new(1000.0, 100.0))
             .build();
         world
             .create_entity()
             .with(Block)
             .with(Acc::new(0.0, 0.0))
             .with(Vel::new(0.0, 0.0))
-            .with(Pos::new(200.0, 200.0))
-            .with(Size::new(200.0, 20.0))
-            .with(Collide::new())
+            .with(Pos::new(0.0, 100.0))
+            .with(Size::new(100.0, 1000.0))
             .build();
 
         Self { world }
@@ -307,8 +386,9 @@ impl Systems {
 
     pub fn update(&mut self) {
         Print.run_now(&mut self.world);
-        UpdateCollide.run_now(&mut self.world);
         Input.run_now(&mut self.world);
+        UpdateVel.run_now(&mut self.world);
+        UpdateCollide.run_now(&mut self.world);
         UpdatePos.run_now(&mut self.world);
         OutOfBound.run_now(&mut self.world);
         Print.run_now(&mut self.world);

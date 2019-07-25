@@ -2,6 +2,7 @@ use quicksilver::geom::{Rectangle, Vector};
 use serde::{Deserialize, Serialize};
 use specs::prelude::*;
 use specs_derive::Component;
+use std::cell::Cell;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Class(pub u64);
@@ -33,6 +34,22 @@ impl Vel {
 
     pub fn zero() -> Self {
         Self(Vector::ZERO)
+    }
+
+    pub fn xcomp(&self) -> Self {
+        if self.0.x == 0.0 {
+            Self::zero()
+        } else {
+            Self::new(self.0.x / self.0.x.abs(), 0.0)
+        }
+    }
+
+    pub fn ycomp(&self) -> Self {
+        if self.0.y == 0.0 {
+            Self::zero()
+        } else {
+            Self::new(0.0, self.0.y / self.0.y.abs())
+        }
     }
 }
 
@@ -93,12 +110,4 @@ pub struct Landmark {
 pub struct Block;
 
 #[derive(Component, Clone, Debug, Serialize, Deserialize)]
-pub struct Collide {
-    pub pos: Option<(Vector, f32)>,
-}
-
-impl Collide {
-    pub fn new() -> Self {
-        Self { pos: None }
-    }
-}
+pub struct Dir(pub f32);
