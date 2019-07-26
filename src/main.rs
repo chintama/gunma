@@ -3,5 +3,5 @@ fn main() {
     // libchintama::run_world();
 
     // Model + Graphic
-    libchintama::run_gui();
+    gunma::run_gui();
 }
