@@ -1,5 +1,9 @@
-# gnumma
+# gnuma
 
-Chintama game engine
+Chintama Game Engine
+
+* Physics
+* Collision checking
+* Entity management
 
 WIP :)
