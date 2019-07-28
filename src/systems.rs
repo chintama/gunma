@@ -235,11 +235,18 @@ impl<'a, 'b> System<'a> for Render<'b> {
     );
 
     fn run(&mut self, (e, pos, siz, bullet, block, player, dir): Self::SystemData) {
+        let center = self.window.screen_size() / 2.0;
+        let center = Pos::new(center.x, 0.0);
+        let mut origin = Pos::new(0.0, 0.0);
+        for (pos, _) in (&pos, &player).join() {
+            origin = Pos::new(pos.0.x, 0.0);
+        }
+
         self.window.clear(Color::WHITE).unwrap();
 
         let size = self.window.screen_size();
         let mut drw = |pos: Vector, siz: Vector, col| {
-            let pos = Vector::new(pos.x, size.y - pos.y - siz.y);
+            let pos = (Vector::new(pos.x, size.y - pos.y - siz.y) - origin.0) + center.0;
             let siz = Vector::new(siz.x, siz.y);
             self.window.draw(&Rectangle::new(pos, siz), col);
         };
