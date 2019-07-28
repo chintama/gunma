@@ -1,16 +1,17 @@
 #[macro_use]
-pub mod vector;
+mod vector;
 
-mod client;
 pub mod components;
-mod config;
-mod entities;
-pub mod error;
-mod gui;
+pub mod entities;
 pub mod protocol;
 pub mod resources;
+
+mod client;
+mod config;
+mod error;
 mod systems;
 
-pub use crate::config::Config;
-pub use crate::gui::run_gui;
-pub use crate::systems::run_world;
+pub use crate::config::{Config, ConfigBuilder};
+pub use crate::error::Result;
+pub use crate::systems::Systems;
+pub use crate::vector::Vector;

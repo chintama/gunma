@@ -6,14 +6,8 @@ use ncollide2d::{
     query::{contact, time_of_impact},
     shape::Cuboid,
 };
-use std::collections::HashMap;
-
-use quicksilver::{
-    geom,
-    graphics::{Background::Col, Color},
-    lifecycle::Window,
-};
 use specs::prelude::*;
+use std::collections::HashMap;
 
 use log::*;
 
@@ -212,72 +206,6 @@ impl<'a> System<'a> for UpdatePos {
     }
 }
 
-struct Render<'a> {
-    window: &'a mut Window,
-}
-
-impl<'a> Render<'a> {
-    fn new(window: &'a mut Window) -> Self {
-        Self { window }
-    }
-}
-
-impl<'a, 'b> System<'a> for Render<'b> {
-    type SystemData = (
-        Entities<'a>,
-        ReadStorage<'a, Pos>,
-        ReadStorage<'a, Size>,
-        ReadStorage<'a, Bullet>,
-        ReadStorage<'a, Block>,
-        ReadStorage<'a, Player>,
-        ReadStorage<'a, Dir>,
-    );
-
-    fn run(&mut self, (e, pos, siz, bullet, block, player, dir): Self::SystemData) {
-        let center = self.window.screen_size() / 2.0;
-        let center = Pos::new(center.x, 0.0);
-        let mut origin = Pos::new(0.0, 0.0);
-        for (pos, _) in (&pos, &player).join() {
-            origin = Pos::new(pos.x, 0.0);
-        }
-
-        self.window.clear(Color::WHITE).unwrap();
-
-        let size = self.window.screen_size();
-        let mut drw = |pos: Pos, siz: Size, col| {
-            let pos = (Pos::new(pos.x, size.y - pos.y - siz.y) - origin) + center;
-            let pos = geom::Vector::new(pos.x, pos.y);
-            let siz = geom::Vector::new(siz.x, siz.y);
-            let rect = geom::Rectangle::new(pos, siz);
-            self.window.draw(&rect, col);
-        };
-
-        for (e, pos, siz) in (&e, &pos, &siz).join() {
-            let col = if player.get(e).is_some() {
-                Col(Color::GREEN)
-            } else if bullet.get(e).is_some() {
-                Col(Color::BLACK)
-            } else if block.get(e).is_some() {
-                Col(Color::BLUE)
-            } else {
-                Col(Color::RED)
-            };
-
-            drw(*pos, *siz, col);
-
-            if player.get(e).is_some() {
-                let d = dir.get(e).unwrap_or(&Dir(1.0));
-                let d = if d.0 > 0.0 { siz.x } else { -10.0 };
-                drw(
-                    *pos + Pos::new(d, 0.0),
-                    Size::new(10.0, 10.0),
-                    Col(Color::BLACK),
-                );
-            }
-        }
-    }
-}
-
 struct OutOfBound;
 
 impl<'a> System<'a> for OutOfBound {
@@ -286,15 +214,6 @@ impl<'a> System<'a> for OutOfBound {
     fn run(&mut self, (_e, _lazy): Self::SystemData) {
         // TODO: Remove entities which are out of screen
         // e.delete(lz);
-    }
-}
-
-pub fn run_world() {
-    let mut sys = Systems::new(Config::default()).unwrap();
-
-    for t in 0..10 {
-        println!("---- time {} ----", t);
-        sys.update();
     }
 }
 
@@ -410,11 +329,11 @@ impl Systems {
         UpdatePos.run_now(&mut self.world);
         OutOfBound.run_now(&mut self.world);
         Print.run_now(&mut self.world);
+        self.world.maintain();
     }
 
-    pub fn render(&mut self, window: &mut Window) {
-        self.world.maintain();
-        Render::new(window).run_now(&mut self.world);
+    pub fn render<'a, T: System<'a>>(&'a mut self, mut sys: T) {
+        sys.run_now(&mut self.world);
     }
 
     pub fn fetch_action<F>(&mut self, f: F)
