@@ -1,3 +1,6 @@
+#[macro_use]
+pub mod vector;
+
 mod client;
 pub mod components;
 mod config;

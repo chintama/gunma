@@ -1,14 +1,11 @@
 use crate::{error::Result, protocol::Message};
 use log::*;
-use serde::{Deserialize, Serialize};
 use std::{
     sync::mpsc::{channel, Receiver, Sender, TryRecvError},
     thread::{spawn, JoinHandle},
 };
 use websocket::client::ClientBuilder;
-use websocket::{
-    receiver::Reader, sender::Writer, stream::sync::TcpStream, Message as WsMessage, OwnedMessage,
-};
+use websocket::{receiver::Reader, sender::Writer, stream::sync::TcpStream, OwnedMessage};
 
 pub struct Client {
     wr_tx: Sender<OwnedMessage>,
@@ -89,22 +86,22 @@ fn rd_loop(
     ws_tx: Sender<OwnedMessage>,
     tx: Sender<OwnedMessage>,
 ) -> Result<()> {
-    loop {
-        for msg in ws_rx.incoming_messages() {
-            match msg {
-                Ok(OwnedMessage::Close(_)) => {
-                    ws_tx.send(OwnedMessage::Close(None))?;
-                }
-                Ok(OwnedMessage::Ping(data)) => {
-                    ws_tx.send(OwnedMessage::Pong(data))?;
-                }
-                Ok(OwnedMessage::Binary(data)) => {
-                    tx.send(OwnedMessage::Binary(data))?;
-                }
-                Ok(msg) => warn!("Received unsupported message: {:?}", msg),
-                Err(e) => {
-                    ws_tx.send(OwnedMessage::Close(None))?;
-                }
+    for msg in ws_rx.incoming_messages() {
+        match msg {
+            Ok(OwnedMessage::Close(_)) => {
+                ws_tx.send(OwnedMessage::Close(None))?;
+            }
+            Ok(OwnedMessage::Ping(data)) => {
+                ws_tx.send(OwnedMessage::Pong(data))?;
+            }
+            Ok(OwnedMessage::Binary(data)) => {
+                tx.send(OwnedMessage::Binary(data))?;
+            }
+            Ok(msg) => warn!("Received unsupported message: {:?}", msg),
+            Err(e) => {
+                warn!("Receive error: {}", e);
+                ws_tx.send(OwnedMessage::Close(None))?;
+                break;
             }
         }
     }

@@ -1,4 +1,4 @@
-use crate::{components::*, entities::*, resources::*};
+use crate::{components::*, resources::*};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

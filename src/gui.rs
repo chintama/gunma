@@ -1,14 +1,11 @@
-use crate::{config::Config, resources::*, systems::Systems};
+use crate::{config::Config, systems::Systems};
 
 use quicksilver::{
-    geom::{Circle, Line, Rectangle, Transform, Triangle, Vector},
-    graphics::{Background::Col, Color},
+    geom::Vector,
     input::{ButtonState, Key},
     lifecycle::{run, Event, Settings, State, Window},
     Result,
 };
-use specs::prelude::*;
-use std::collections::BTreeMap;
 
 struct Screen {
     sys: Systems,
@@ -59,5 +56,5 @@ impl State for Screen {
 }
 
 pub fn run_gui() {
-    run::<Screen>("Draw Geometry", Vector::new(800, 600), Settings::default());
+    run::<Screen>("Chintama", Vector::new(800, 600), Settings::default());
 }
