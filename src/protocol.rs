@@ -23,6 +23,8 @@ pub struct SendAction {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Message {
     GetTerrain(GetTerrain),
+    GetAllTerrain,
     Terrain(Terrain),
+    EndTerrain,
     SendAction(SendAction),
 }

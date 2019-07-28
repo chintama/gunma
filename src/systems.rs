@@ -16,6 +16,8 @@ use quicksilver::{
 use specs::prelude::*;
 use specs_derive::Component;
 
+use log::*;
+
 struct Print;
 
 impl<'a> System<'a> for Print {
@@ -305,8 +307,8 @@ pub struct Systems {
 
 impl Systems {
     pub fn new(cfg: Config) -> Result<Self> {
-        let game_client = Client::new(&cfg.game_server)?;
-        let terrain_client = Client::new(&cfg.terrain_server)?;
+        let mut game_client = Client::new(&cfg.game_server)?;
+        let mut terrain_client = Client::new(&cfg.terrain_server)?;
 
         let mut world = World::new();
 
@@ -373,22 +375,26 @@ impl Systems {
             .with(Vel::zero())
             .with(Block)
             .build();
-        world
-            .create_entity()
-            .with(Block)
-            .with(Acc::new(0.0, 0.0))
-            .with(Vel::new(0.0, 0.0))
-            .with(Pos::new(0.0, 0.0))
-            .with(Size::new(1000.0, 100.0))
-            .build();
-        world
-            .create_entity()
-            .with(Block)
-            .with(Acc::new(0.0, 0.0))
-            .with(Vel::new(0.0, 0.0))
-            .with(Pos::new(0.0, 100.0))
-            .with(Size::new(100.0, 1000.0))
-            .build();
+
+        terrain_client.send(Message::GetAllTerrain)?;
+        loop {
+            match terrain_client.recv()? {
+                Message::Terrain(t) => {
+                    info!("Received terrain from server: {:?}", t);
+
+                    world
+                        .create_entity()
+                        .with(Block)
+                        .with(Acc::new(0.0, 0.0))
+                        .with(Vel::new(0.0, 0.0))
+                        .with(t.pos)
+                        .with(t.size)
+                        .build();
+                }
+                Message::EndTerrain => break,
+                msg => warn!("Invalid message: {:?}", msg),
+            }
+        }
 
         Ok(Self {
             world,

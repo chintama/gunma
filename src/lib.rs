@@ -1,11 +1,11 @@
 mod client;
-mod components;
+pub mod components;
 mod config;
 mod entities;
-mod error;
+pub mod error;
 mod gui;
-mod protocol;
-mod resources;
+pub mod protocol;
+pub mod resources;
 mod systems;
 
 pub use crate::config::Config;
