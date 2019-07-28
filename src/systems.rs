@@ -219,13 +219,16 @@ impl<'a> System<'a> for OutOfBound {
 
 pub struct Systems {
     world: World,
-    game_client: Client,
+    game_client: Option<Client>,
     terrain_client: Client,
 }
 
 impl Systems {
     pub fn new(cfg: Config) -> Result<Self> {
-        let game_client = Client::new(&cfg.game_server)?;
+        let game_client = match &cfg.game_server {
+            Some(addr) => Some(Client::new(addr)?),
+            None => None,
+        };
         let mut terrain_client = Client::new(&cfg.terrain_server)?;
 
         let mut world = World::new();
@@ -344,11 +347,15 @@ impl Systems {
 
         f(&mut action);
 
-        self.game_client
-            .send(Message::SendAction(SendAction {
-                id: 0,
-                action: action.clone(),
-            }))
-            .unwrap();
+        match &mut self.game_client {
+            Some(cli) => {
+                cli.send(Message::SendAction(SendAction {
+                    id: 0,
+                    action: action.clone(),
+                }))
+                .unwrap();
+            }
+            None => {}
+        }
     }
 }

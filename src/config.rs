@@ -2,14 +2,14 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Config {
-    pub game_server: String,
+    pub game_server: Option<String>,
     pub terrain_server: String,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            game_server: "ws://127.0.0.1:8080/ws/".into(),
+            game_server: None,
             terrain_server: "ws://127.0.0.1:8080/ws/".into(),
         }
     }
@@ -28,7 +28,7 @@ impl Config {
 
 impl ConfigBuilder {
     pub fn game_server(mut self, path: &str) -> Self {
-        self.cfg.game_server = path.into();
+        self.cfg.game_server = Some(path.into());
         self
     }
 
