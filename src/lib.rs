@@ -1,5 +1,7 @@
+mod client;
 mod components;
 mod entities;
+mod error;
 mod gui;
 mod protocol;
 mod resources;
