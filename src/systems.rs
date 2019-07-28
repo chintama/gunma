@@ -18,7 +18,7 @@ impl<'a> System<'a> for Print {
 
     fn run(&mut self, (e, pos): Self::SystemData) {
         for (e, pos) in (&e, &pos).join() {
-            println!("{:?}: pos={:?}", e, pos);
+            trace!("{:?}: pos={:?}", e, pos);
         }
     }
 }

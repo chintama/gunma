@@ -10,8 +10,8 @@ use websocket::{receiver::Reader, sender::Writer, stream::sync::TcpStream, Owned
 pub struct Client {
     wr_tx: Sender<OwnedMessage>,
     rd_rx: Receiver<OwnedMessage>,
-    wr_thread: JoinHandle<()>,
-    rd_thread: JoinHandle<()>,
+    _wr_thread: JoinHandle<()>,
+    _rd_thread: JoinHandle<()>,
 }
 
 impl Client {
@@ -24,18 +24,18 @@ impl Client {
         let (wr_tx, wr_rx) = channel();
         let (ws_rx, ws_tx) = client.split()?;
         let wr_tx2 = wr_tx.clone();
-        let wr_thread = spawn(move || {
+        let _wr_thread = spawn(move || {
             wr_loop(ws_tx, wr_rx).unwrap();
         });
-        let rd_thread = spawn(move || {
+        let _rd_thread = spawn(move || {
             rd_loop(ws_rx, wr_tx2, rd_tx).unwrap();
         });
 
         Ok(Self {
             wr_tx,
             rd_rx,
-            wr_thread,
-            rd_thread,
+            _wr_thread,
+            _rd_thread,
         })
     }
 
