@@ -292,12 +292,14 @@ pub fn run_world() {
 
 pub struct Systems {
     world: World,
-    client: Client,
+    game_client: Client,
+    terrain_client: Client,
 }
 
 impl Systems {
     pub fn new(cfg: Config) -> Result<Self> {
-        let client = Client::new(&cfg.terrain_server)?;
+        let game_client = Client::new(&cfg.game_server)?;
+        let terrain_client = Client::new(&cfg.terrain_server)?;
 
         let mut world = World::new();
 
@@ -381,7 +383,11 @@ impl Systems {
             .with(Size::new(100.0, 1000.0))
             .build();
 
-        Ok(Self { world, client })
+        Ok(Self {
+            world,
+            game_client,
+            terrain_client,
+        })
     }
 
     pub fn update(&mut self) {
@@ -407,7 +413,7 @@ impl Systems {
 
         f(&mut action);
 
-        self.client
+        self.game_client
             .send(Message::SendAction(SendAction {
                 id: 0,
                 action: action.clone(),
