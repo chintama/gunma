@@ -111,3 +111,6 @@ pub struct Block;
 
 #[derive(Component, Clone, Debug, Serialize, Deserialize)]
 pub struct Dir(pub f32);
+
+#[derive(Component, Clone, Debug, Serialize, Deserialize)]
+pub struct Asset(u64);

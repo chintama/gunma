@@ -1,5 +1,7 @@
 mod components;
+mod entities;
 mod gui;
+mod protocol;
 mod resources;
 mod systems;
 
