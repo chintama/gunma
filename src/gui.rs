@@ -1,4 +1,4 @@
-use crate::{resources::*, systems::Systems};
+use crate::{config::Config, resources::*, systems::Systems};
 
 use quicksilver::{
     geom::{Circle, Line, Rectangle, Transform, Triangle, Vector},
@@ -17,7 +17,7 @@ struct Screen {
 impl State for Screen {
     fn new() -> Result<Screen> {
         Ok(Screen {
-            sys: Systems::new(),
+            sys: Systems::new(Config::default()).unwrap(),
         })
     }
 
@@ -27,9 +27,7 @@ impl State for Screen {
     }
 
     fn event(&mut self, event: &Event, window: &mut Window) -> Result<()> {
-        let mut action = self.sys.world().write_resource::<Action>();
-
-        match *event {
+        self.sys.fetch_action(|action| match *event {
             Event::Key(Key::Left, ButtonState::Pressed) => {
                 action.left = true;
             }
@@ -49,7 +47,8 @@ impl State for Screen {
                 window.close();
             }
             _ => (),
-        }
+        });
+
         Ok(())
     }
 

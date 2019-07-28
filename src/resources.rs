@@ -1,4 +1,6 @@
-#[derive(Default)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct Action {
     pub jump: bool,
     pub left: bool,

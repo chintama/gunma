@@ -47,10 +47,18 @@ impl Client {
         Ok(self.wr_tx.send(msg)?)
     }
 
-    pub fn recv(&mut self) -> Result<Option<Message>> {
+    pub fn try_recv(&mut self) -> Result<Option<Message>> {
         match self.rd_rx.try_recv() {
             Ok(OwnedMessage::Binary(msg)) => Ok(Some(serde_json::from_slice(&msg)?)),
             Err(TryRecvError::Empty) => Ok(None),
+            Err(e) => Err(e.into()),
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn recv(&mut self) -> Result<Message> {
+        match self.rd_rx.recv() {
+            Ok(OwnedMessage::Binary(msg)) => Ok(serde_json::from_slice(&msg)?),
             Err(e) => Err(e.into()),
             _ => unreachable!(),
         }

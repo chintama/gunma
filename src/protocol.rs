@@ -1,4 +1,4 @@
-use crate::{components::*, entities::*};
+use crate::{components::*, entities::*, resources::*};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -15,7 +15,14 @@ pub struct Terrain {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SendAction {
+    pub id: u64,
+    pub action: Action,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Message {
     GetTerrain(GetTerrain),
     Terrain(Terrain),
+    SendAction(SendAction),
 }

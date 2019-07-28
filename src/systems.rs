@@ -1,4 +1,6 @@
-use crate::{components::*, resources::*};
+use crate::{
+    client::Client, components::*, config::Config, error::Result, protocol::*, resources::*,
+};
 use ncollide2d::{
     math::Isometry,
     query::{contact, time_of_impact},
@@ -9,7 +11,6 @@ use quicksilver::{
     geom::{Rectangle, Shape, Vector},
     graphics::{Background::Col, Color},
     lifecycle::Window,
-    Result,
 };
 
 use specs::prelude::*;
@@ -281,7 +282,7 @@ impl<'a> System<'a> for OutOfBound {
 }
 
 pub fn run_world() {
-    let mut sys = Systems::new();
+    let mut sys = Systems::new(Config::default()).unwrap();
 
     for t in 0..10 {
         println!("---- time {} ----", t);
@@ -291,10 +292,13 @@ pub fn run_world() {
 
 pub struct Systems {
     world: World,
+    client: Client,
 }
 
 impl Systems {
-    pub fn new() -> Self {
+    pub fn new(cfg: Config) -> Result<Self> {
+        let client = Client::new(&cfg.terrain_server)?;
+
         let mut world = World::new();
 
         world.register::<Pos>();
@@ -377,11 +381,7 @@ impl Systems {
             .with(Size::new(100.0, 1000.0))
             .build();
 
-        Self { world }
-    }
-
-    pub fn world(&self) -> &World {
-        &self.world
+        Ok(Self { world, client })
     }
 
     pub fn update(&mut self) {
@@ -397,5 +397,21 @@ impl Systems {
     pub fn render(&mut self, window: &mut Window) {
         self.world.maintain();
         Render::new(window).run_now(&mut self.world);
+    }
+
+    pub fn fetch_action<F>(&mut self, f: F)
+    where
+        F: FnOnce(&mut Action),
+    {
+        let mut action = self.world.write_resource();
+
+        f(&mut action);
+
+        self.client
+            .send(Message::SendAction(SendAction {
+                id: 0,
+                action: action.clone(),
+            }))
+            .unwrap();
     }
 }
