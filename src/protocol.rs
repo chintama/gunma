@@ -16,12 +16,29 @@ pub struct Terrain {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SendAction {
-    pub id: u64,
+    pub player: Player,
+    pub pos: Pos,
+    pub vel: Vel,
+    pub acc: Acc,
+    pub dir: Dir,
     pub action: Action,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Login {
+    pub cls: Class,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LoginAck {
+    pub player: Player,
+    pub spawn: Pos,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Message {
+    Login(Login),
+    LoginAck(LoginAck),
     GetTerrain(GetTerrain),
     GetAllTerrain,
     Terrain(Terrain),

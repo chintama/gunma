@@ -1,5 +1,5 @@
 use crate::{
-    client::Client, components::*, config::Config, error::Result, protocol::*, resources::*,
+    client::Client, components::*, config::Config, error::Result, io::Io, protocol::*, resources::*,
 };
 use ncollide2d::{
     math::Isometry,
@@ -23,9 +23,17 @@ impl<'a> System<'a> for Print {
     }
 }
 
-struct Input;
+struct Input<'a> {
+    io: &'a mut Io,
+}
 
-impl<'a> System<'a> for Input {
+impl<'a> Input<'a> {
+    fn new(io: &'a mut Io) -> Self {
+        Self { io }
+    }
+}
+
+impl<'a> System<'a> for Input<'a> {
     type SystemData = (
         Entities<'a>,
         Write<'a, Action>,
@@ -33,12 +41,22 @@ impl<'a> System<'a> for Input {
         ReadStorage<'a, Pos>,
         ReadStorage<'a, Size>,
         WriteStorage<'a, Vel>,
+        ReadStorage<'a, Acc>,
         WriteStorage<'a, Dir>,
         Read<'a, LazyUpdate>,
     );
 
-    fn run(&mut self, (e, mut act, player, pos, siz, mut vel, mut dir, lazy): Self::SystemData) {
-        for (_, pos, siz, vel, dir) in (&player, &pos, &siz, &mut vel, &mut dir).join() {
+    fn run(
+        &mut self,
+        (e, mut act, player, pos, siz, mut vel, acc, mut dir, lazy): Self::SystemData,
+    ) {
+        for (player, pos, siz, vel, acc, dir) in
+            (&player, &pos, &siz, &mut vel, &acc, &mut dir).join()
+        {
+            if !act.update {
+                continue;
+            }
+
             if act.jump {
                 vel.y = 5.0;
             }
@@ -60,6 +78,17 @@ impl<'a> System<'a> for Input {
                     .with(Size::new(10.0, 10.0))
                     .build();
             }
+
+            let info = SendAction {
+                player: player.clone(),
+                pos: *pos,
+                vel: *vel,
+                acc: *acc,
+                dir: *dir,
+                action: act.clone(),
+            };
+
+            self.io.send_action(info).unwrap();
         }
 
         act.clear();
@@ -219,18 +248,12 @@ impl<'a> System<'a> for OutOfBound {
 
 pub struct Systems {
     world: World,
-    game_client: Option<Client>,
-    terrain_client: Client,
+    io: Io,
 }
 
 impl Systems {
     pub fn new(cfg: Config) -> Result<Self> {
-        let game_client = match &cfg.game_server {
-            Some(addr) => Some(Client::new(addr)?),
-            None => None,
-        };
-        let mut terrain_client = Client::new(&cfg.terrain_server)?;
-
+        let mut io = Io::new(cfg)?;
         let mut world = World::new();
 
         world.register::<Pos>();
@@ -245,88 +268,49 @@ impl Systems {
         world.register::<Block>();
         world.register::<Dir>();
         world.insert(Action::default());
+        world.insert(User::default());
 
-        for i in 0..10 {
+        info!("Requesting terrain data");
+
+        for t in io.get_all_terrain()? {
+            info!("Received terrain from server: {:?}", t);
             world
                 .create_entity()
-                .with(Vel::new(1.0, 2.0))
-                .with(Pos::new(160.0, 100.0 * i as f32))
-                .with(Acc::new(0.0, -0.05))
-                .with(Size::new(10.0, 10.0))
-                .build();
-            world
-                .create_entity()
-                .with(Vel::new(1.0, 0.1 * i as f32))
-                .with(Pos::new(180.0, 120.0 * i as f32))
-                .with(Acc::new(0.0, -0.02))
-                .with(Size::new(12.0, 12.0))
+                .with(Block)
+                .with(Acc::new(0.0, 0.0))
+                .with(Vel::new(0.0, 0.0))
+                .with(t.pos)
+                .with(t.size)
                 .build();
         }
 
-        world
-            .create_entity()
-            .with(Pos::new(150.0, 500.0))
-            .with(Size::new(30.0, 50.0))
-            .with(Vel::zero())
-            .with(Acc::new(0.0, -0.15))
-            .with(Player { lives: 100 })
-            .with(Dir(1.0))
-            .build();
-        world
-            .create_entity()
-            .with(Pos::new(300.0, 500.0))
-            .with(Size::new(800.0, 150.0))
-            .with(Acc::new(0.0, 0.0))
-            .with(Vel::zero())
-            .with(Block)
-            .build();
-        world
-            .create_entity()
-            .with(Pos::new(600.0, 350.0))
-            .with(Size::new(400.0, 100.0))
-            .with(Acc::new(0.0, 0.0))
-            .with(Vel::zero())
-            .with(Block)
-            .build();
-        world
-            .create_entity()
-            .with(Pos::new(400.0, 200.0))
-            .with(Size::new(300.0, 50.0))
-            .with(Acc::new(0.0, 0.0))
-            .with(Vel::zero())
-            .with(Block)
-            .build();
+        if io.is_client() {
+            info!("Logging in");
 
-        terrain_client.send(Message::GetAllTerrain)?;
-        loop {
-            match terrain_client.recv()? {
-                Message::Terrain(t) => {
-                    info!("Received terrain from server: {:?}", t);
+            let info = io.login(CLASS_CHIBA)?;
 
-                    world
-                        .create_entity()
-                        .with(Block)
-                        .with(Acc::new(0.0, 0.0))
-                        .with(Vel::new(0.0, 0.0))
-                        .with(t.pos)
-                        .with(t.size)
-                        .build();
-                }
-                Message::EndTerrain => break,
-                msg => warn!("Invalid message: {:?}", msg),
+            {
+                let mut user = world.write_resource::<User>();
+                user.set(&info.player);
             }
+
+            world
+                .create_entity()
+                .with(Size::new(30.0, 50.0))
+                .with(Vel::zero())
+                .with(Acc::new(0.0, -0.15))
+                .with(info.spawn)
+                .with(info.player)
+                .with(Dir(1.0))
+                .build();
         }
 
-        Ok(Self {
-            world,
-            game_client,
-            terrain_client,
-        })
+        Ok(Self { world, io })
     }
 
     pub fn update(&mut self) {
         Print.run_now(&mut self.world);
-        Input.run_now(&mut self.world);
+        Input::new(&mut self.io).run_now(&mut self.world);
         UpdateVel.run_now(&mut self.world);
         UpdateCollide.run_now(&mut self.world);
         UpdatePos.run_now(&mut self.world);
@@ -346,16 +330,5 @@ impl Systems {
         let mut action = self.world.write_resource();
 
         f(&mut action);
-
-        match &mut self.game_client {
-            Some(cli) => {
-                cli.send(Message::SendAction(SendAction {
-                    id: 0,
-                    action: action.clone(),
-                }))
-                .unwrap();
-            }
-            None => {}
-        }
     }
 }

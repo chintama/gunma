@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use specs::prelude::*;
 use specs_derive::Component;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Component, Clone, Debug, Serialize, Deserialize)]
 pub struct Class(pub u64);
 
 pub const CLASS_NEUTRAL: Class = Class(0);
@@ -17,6 +17,8 @@ impl_vector!(Acc);
 
 #[derive(Component, Clone, Debug, Serialize, Deserialize)]
 pub struct Player {
+    pub id: u64,
+    pub cls: Class,
     pub lives: u64,
 }
 
@@ -45,8 +47,8 @@ pub struct Landmark {
 #[derive(Component, Clone, Debug, Serialize, Deserialize)]
 pub struct Block;
 
-#[derive(Component, Clone, Debug, Serialize, Deserialize)]
+#[derive(Component, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Dir(pub f32);
 
-#[derive(Component, Clone, Debug, Serialize, Deserialize)]
+#[derive(Component, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Asset(pub u64);

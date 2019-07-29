@@ -9,6 +9,7 @@ pub mod resources;
 mod client;
 mod config;
 mod error;
+mod io;
 mod systems;
 
 pub use crate::config::{Config, ConfigBuilder};
