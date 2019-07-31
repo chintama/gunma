@@ -23,10 +23,7 @@ pub struct Player {
 }
 
 #[derive(Component, Clone, Debug, Serialize, Deserialize)]
-pub struct Enemy {
-    pub lives: u64,
-    pub class: Class,
-}
+pub struct Enemy;
 
 #[derive(Component, Clone, Debug, Serialize, Deserialize)]
 pub struct Gun {
@@ -50,5 +47,5 @@ pub struct Block;
 #[derive(Component, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Dir(pub f32);
 
-#[derive(Component, Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Component, PartialEq, Eq, Hash, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Asset(pub u64);

@@ -44,15 +44,20 @@ impl<'a> System<'a> for Input<'a> {
         ReadStorage<'a, Acc>,
         WriteStorage<'a, Dir>,
         Read<'a, LazyUpdate>,
+        Read<'a, User>,
     );
 
     fn run(
         &mut self,
-        (e, mut act, player, pos, siz, mut vel, acc, mut dir, lazy): Self::SystemData,
+        (e, mut act, player, pos, siz, mut vel, acc, mut dir, lazy, user): Self::SystemData,
     ) {
         for (player, pos, siz, vel, acc, dir) in
             (&player, &pos, &siz, &mut vel, &acc, &mut dir).join()
         {
+            if !user.is_me(player) {
+                continue;
+            }
+
             if !act.update {
                 continue;
             }
@@ -75,7 +80,8 @@ impl<'a> System<'a> for Input<'a> {
                     .with(*pos + Vel::new(d, 0.0))
                     .with(Acc::zero())
                     .with(Bullet { class: CLASS_CHIBA })
-                    .with(Size::new(10.0, 10.0))
+                    .with(Size::new(30.0, 30.0))
+                    .with(Asset(100))
                     .build();
             }
 
@@ -172,6 +178,10 @@ fn update_vel(p1: &Pos, s1: &Size, v1: &Vel, p2: &Pos, s2: &Size, v2: &Vel) -> (
     }
 }
 
+fn collide(p1: &Pos, s1: &Size, v1: &Vel, p2: &Pos, s2: &Size, v2: &Vel) -> bool {
+    toi(p1, s1, v1, p2, s2, v2) < 1.0
+}
+
 fn min(v1: &Vel, v2: &Vel) -> Vel {
     let len = |p: &Vel| p.x * p.x + p.y * p.y;
 
@@ -188,11 +198,15 @@ impl<'a> System<'a> for UpdateCollide {
         ReadStorage<'a, Pos>,
         ReadStorage<'a, Size>,
         WriteStorage<'a, Vel>,
+        ReadStorage<'a, Bullet>,
         ReadStorage<'a, Player>,
+        ReadStorage<'a, Enemy>,
         ReadStorage<'a, Block>,
+        Read<'a, User>,
+        Read<'a, LazyUpdate>,
     );
 
-    fn run(&mut self, (e, pos, siz, mut vel, ply, blk): Self::SystemData) {
+    fn run(&mut self, (e, pos, siz, mut vel, bullet, ply, enemy, blk, user, lazy): Self::SystemData) {
         let mut map = HashMap::<_, Vel>::new();
 
         for (e1, p1, s1, v1, _) in (&e, &pos, &siz, &vel, &ply).join() {
@@ -208,6 +222,40 @@ impl<'a> System<'a> for UpdateCollide {
                     *vel = min(vel, &v2);
                 } else {
                     map.insert(e2, v2);
+                }
+            }
+        }
+
+        for (e1, p1, s1, v1, _) in (&e, &pos, &siz, &vel, &bullet).join() {
+            for (e2, p2, s2, v2, player) in (&e, &pos, &siz, &vel, &ply).join() {
+                if user.is_me(player) {
+                    continue;
+                }
+
+                if collide(p1, s1, v1, p2, s2, v2) {
+                    e.delete(e1);
+                    e.delete(e2);
+                }
+            }
+        }
+
+        for (e1, p1, s1, v1, ply) in (&e, &pos, &siz, &vel, &ply).join() {
+            for (e2, p2, s2, v2, _) in (&e, &pos, &siz, &vel, &enemy).join() {
+                if !user.is_me(ply) {
+                    continue;
+                }
+
+                if collide(p1, s1, v1, p2, s2, v2) {
+                    lazy.create_entity(&e)
+                        .with(Vel::zero())
+                        .with(Pos::new(-300.0, 0.0))
+                        .with(Acc::zero())
+                        .with(Size::new(600.0, 600.0))
+                        .with(Asset(900))
+                        .build();
+
+                    e.delete(e1);
+                    e.delete(e2);
                 }
             }
         }
@@ -267,6 +315,7 @@ impl Systems {
         world.register::<Landmark>();
         world.register::<Block>();
         world.register::<Dir>();
+        world.register::<Asset>();
         world.insert(Action::default());
         world.insert(User::default());
 
@@ -279,6 +328,7 @@ impl Systems {
                 .with(Block)
                 .with(Acc::new(0.0, 0.0))
                 .with(Vel::new(0.0, 0.0))
+                .with(t.asset)
                 .with(t.pos)
                 .with(t.size)
                 .build();
@@ -287,7 +337,14 @@ impl Systems {
         if io.is_client() {
             info!("Logging in");
 
-            let info = io.login(CLASS_CHIBA)?;
+            let info = LoginAck{
+                player: Player {
+                    id: 1,
+                    cls: CLASS_CHIBA,
+                    lives: 100,
+                },
+                spawn: Pos::new(100.0, 100.0)
+            }; // io.login(CLASS_CHIBA)?;
 
             {
                 let mut user = world.write_resource::<User>();
@@ -296,12 +353,31 @@ impl Systems {
 
             world
                 .create_entity()
-                .with(Size::new(30.0, 50.0))
+                .with(Size::new(50.0, 40.0))
                 .with(Vel::zero())
                 .with(Acc::new(0.0, -0.15))
                 .with(info.spawn)
                 .with(info.player)
+                .with(Asset(1))
                 .with(Dir(1.0))
+                .build();
+        }
+
+        for i in 2..100 {
+            world
+                .create_entity()
+                .with(Size::new(50.0, 50.0))
+                .with(Vel::zero())
+                .with(Acc::new(0.0, -0.15))
+                .with(Pos::new(i as f32 * 100.0, 500.0))
+                .with(Player {
+                    id: i,
+                    cls: CLASS_SAITAMA,
+                    lives: 10,
+                })
+                .with(Enemy)
+                .with(Asset(3))
+                .with(Dir(-1.0))
                 .build();
         }
 
