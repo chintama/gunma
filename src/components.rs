@@ -26,6 +26,11 @@ pub struct Player {
 pub struct Enemy;
 
 #[derive(Component, Clone, Debug, Serialize, Deserialize)]
+pub struct Boss {
+    pub step: u64,
+}
+
+#[derive(Component, Clone, Debug, Serialize, Deserialize)]
 pub struct Gun {
     pub bullets: u64,
 }
@@ -49,3 +54,6 @@ pub struct Dir(pub f32);
 
 #[derive(Component, PartialEq, Eq, Hash, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Asset(pub u64);
+
+#[derive(Component, PartialEq, Eq, Hash, Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct GC;

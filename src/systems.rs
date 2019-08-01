@@ -101,6 +101,43 @@ impl<'a> System<'a> for Input<'a> {
     }
 }
 
+struct BjarneSystem;
+
+impl<'a> System<'a> for BjarneSystem {
+    type SystemData = (Entities<'a>,
+                       ReadStorage<'a, Pos>,
+                       WriteStorage<'a, Boss>,
+                       Read<'a, LazyUpdate>);
+
+    fn run(&mut self, (e, pos, mut boss, lazy): Self::SystemData) {
+        for (pos, boss) in (&pos, &mut boss).join() {
+            boss.step = boss.step.wrapping_add(1);
+            if boss.step % 100 == 0 {
+                for i in (90..270).filter(|i| i % 10 == 0) {
+                    use std::f32::consts::PI;
+                    let x = (i as f32 / 180.0 * PI).cos() * 10.0;
+                    let y = (i as f32 / 180.0 * PI).sin() * 10.0;
+                    lazy.create_entity(&e)
+                        .with(Vel::new(x, y))
+                        .with(*pos + Pos::new(0.0, 200.0))
+                        .with(Acc::zero())
+                        .with(Size::new(30.0, 30.0))
+                        .with(Asset(3))
+                        .with(Player {
+                            id: 1000,
+                            cls: CLASS_SAITAMA,
+                            lives: 10,
+                        })
+                        .with(GC)
+                        .with(Enemy)
+                        .with(Dir(-1.0))
+                        .build();
+                }
+            }
+        }
+    }
+}
+
 struct UpdateVel;
 
 impl<'a> System<'a> for UpdateVel {
@@ -199,14 +236,15 @@ impl<'a> System<'a> for UpdateCollide {
         ReadStorage<'a, Size>,
         WriteStorage<'a, Vel>,
         ReadStorage<'a, Bullet>,
-        ReadStorage<'a, Player>,
+        WriteStorage<'a, Player>,
         ReadStorage<'a, Enemy>,
+        ReadStorage<'a, Boss>,
         ReadStorage<'a, Block>,
         Read<'a, User>,
         Read<'a, LazyUpdate>,
     );
 
-    fn run(&mut self, (e, pos, siz, mut vel, bullet, ply, enemy, blk, user, lazy): Self::SystemData) {
+    fn run(&mut self, (e, pos, siz, mut vel, bullet, mut ply, enemy, boss, blk, user, lazy): Self::SystemData) {
         let mut map = HashMap::<_, Vel>::new();
 
         for (e1, p1, s1, v1, _) in (&e, &pos, &siz, &vel, &ply).join() {
@@ -226,9 +264,11 @@ impl<'a> System<'a> for UpdateCollide {
             }
         }
 
+        // bullet v.s. enemies
         for (e1, p1, s1, v1, _) in (&e, &pos, &siz, &vel, &bullet).join() {
-            for (e2, p2, s2, v2, player) in (&e, &pos, &siz, &vel, &ply).join() {
-                if user.is_me(player) {
+            for (e2, p2, s2, v2, player) in (&e, &pos, &siz, &vel, &enemy).join() {
+                if boss.get(e2).is_some() {
+                    // boss never die
                     continue;
                 }
 
@@ -239,22 +279,33 @@ impl<'a> System<'a> for UpdateCollide {
             }
         }
 
-        for (e1, p1, s1, v1, ply) in (&e, &pos, &siz, &vel, &ply).join() {
+        for (e1, p1, s1, v1, ply) in (&e, &pos, &siz, &vel, &mut ply).join() {
             for (e2, p2, s2, v2, _) in (&e, &pos, &siz, &vel, &enemy).join() {
                 if !user.is_me(ply) {
                     continue;
                 }
 
                 if collide(p1, s1, v1, p2, s2, v2) {
-                    lazy.create_entity(&e)
-                        .with(Vel::zero())
-                        .with(Pos::new(-300.0, 0.0))
-                        .with(Acc::zero())
-                        .with(Size::new(600.0, 600.0))
-                        .with(Asset(900))
-                        .build();
+                    ply.lives = ply.lives.saturating_sub(1);
 
-                    e.delete(e1);
+                    if ply.lives == 0 {
+                        e.delete(e1);
+
+                        // Game over!
+                        lazy.create_entity(&e)
+                            .with(Vel::zero())
+                            .with(Pos::new(-300.0, 0.0))
+                            .with(Acc::zero())
+                            .with(Size::new(600.0, 600.0))
+                            .with(Asset(900))
+                            .build();
+                    }
+
+                    if boss.get(e2).is_some() {
+                        // boss never die
+                        continue;
+                    }
+
                     e.delete(e2);
                 }
             }
@@ -286,9 +337,25 @@ impl<'a> System<'a> for UpdatePos {
 struct OutOfBound;
 
 impl<'a> System<'a> for OutOfBound {
-    type SystemData = (Entities<'a>, Read<'a, LazyUpdate>);
+    type SystemData = (Entities<'a>,
+                       ReadStorage<'a, Pos>,
+                       ReadStorage<'a, Player>,
+                       ReadStorage<'a, GC>,
+                       Read<'a, User>);
 
-    fn run(&mut self, (_e, _lazy): Self::SystemData) {
+    fn run(&mut self, (e, pos, ply, gc, user): Self::SystemData) {
+        for (plypos, ply) in (&pos, &ply).join() {
+            if !user.is_me(ply) {
+                continue;
+            }
+
+            for (e1, pos, gc) in (&e, &pos, &gc).join() {
+                let d = *pos - *plypos;
+                if (d.x * d.x + d.y * d.y).sqrt() >= 2000.0 {
+                    e.delete(e1);
+                }
+            }
+        }
         // TODO: Remove entities which are out of screen
         // e.delete(lz);
     }
@@ -310,6 +377,8 @@ impl Systems {
         world.register::<Size>();
         world.register::<Player>();
         world.register::<Enemy>();
+        world.register::<Boss>();
+        world.register::<GC>();
         world.register::<Gun>();
         world.register::<Bullet>();
         world.register::<Landmark>();
@@ -341,7 +410,7 @@ impl Systems {
                 player: Player {
                     id: 1,
                     cls: CLASS_CHIBA,
-                    lives: 100,
+                    lives: 10,
                 },
                 spawn: Pos::new(100.0, 100.0)
             }; // io.login(CLASS_CHIBA)?;
@@ -381,12 +450,25 @@ impl Systems {
                 .build();
         }
 
+        world
+            .create_entity()
+            .with(Size::new(594.0, 327.0))
+            .with(Vel::new(-1.0, 0.0))
+            .with(Acc::zero())
+            .with(Pos::new(2000.0, 200.0))
+            .with(Enemy)
+            .with(Boss { step: 0 })
+            .with(Asset(4))
+            .with(Dir(-1.0))
+            .build();
+
         Ok(Self { world, io })
     }
 
     pub fn update(&mut self) {
         Print.run_now(&mut self.world);
         Input::new(&mut self.io).run_now(&mut self.world);
+        BjarneSystem.run_now(&mut self.world);
         UpdateVel.run_now(&mut self.world);
         UpdateCollide.run_now(&mut self.world);
         UpdatePos.run_now(&mut self.world);
