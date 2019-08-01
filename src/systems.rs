@@ -119,7 +119,7 @@ impl<'a> System<'a> for BjarneSystem {
                     let y = (i as f32 / 180.0 * PI).sin() * 10.0;
                     lazy.create_entity(&e)
                         .with(Vel::new(x, y))
-                        .with(*pos + Pos::new(0.0, 200.0))
+                        .with(*pos + Pos::new(0.0, 200.0 * 0.8))
                         .with(Acc::zero())
                         .with(Size::new(30.0, 30.0))
                         .with(Asset(3))
@@ -452,7 +452,7 @@ impl Systems {
 
         world
             .create_entity()
-            .with(Size::new(594.0, 327.0))
+            .with(Size::new(594.0 * 0.8, 327.0 * 0.8))
             .with(Vel::new(-1.0, 0.0))
             .with(Acc::zero())
             .with(Pos::new(2000.0, 200.0))
