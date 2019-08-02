@@ -35,6 +35,12 @@ pub struct LoginAck {
     pub spawn: Pos,
 }
 
+impl LoginAck {
+    pub fn new(player: Player, spawn: Pos) -> Self {
+        Self { player, spawn }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Message {
     Login(Login),
