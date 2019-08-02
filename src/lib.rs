@@ -7,6 +7,7 @@ pub mod protocol;
 pub mod resources;
 
 mod client;
+mod collide;
 mod config;
 mod error;
 mod io;

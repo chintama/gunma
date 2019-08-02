@@ -1,20 +1,38 @@
-use crate::components::Player;
+use crate::components::*;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum Event {
+    Collision,
+}
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
-pub struct User {
-    pub id: Option<u64>,
+pub struct Events(pub Vec<Event>);
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PlayerUpdate {
+    pub pos: Pos,
+    pub player: Player,
+    pub dir: Dir,
+    pub vel: Vel,
+    pub acc: Acc,
 }
 
-impl User {
-    pub fn set(&mut self, player: &Player) {
-        self.id = Some(player.id);
-    }
-
-    pub fn is_me(&self, player: &Player) -> bool {
-        self.id.is_some() && self.id.unwrap() == player.id
+impl PlayerUpdate {
+    pub fn new(pos: Pos, player: Player, dir: Dir, vel: Vel, acc: Acc) -> Self {
+        Self {
+            pos,
+            player,
+            dir,
+            vel,
+            acc,
+        }
     }
 }
+
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
+pub struct PlayerUpdates(pub HashMap<u64, PlayerUpdate>);
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct Action {

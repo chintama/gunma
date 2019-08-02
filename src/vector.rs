@@ -2,6 +2,20 @@ pub trait Vector: Sized {
     fn x(&self) -> f32;
 
     fn y(&self) -> f32;
+
+    fn len(&self) -> f32 {
+        (self.x() * self.x() + self.y() * self.y()).sqrt()
+    }
+}
+
+impl<'a, T: Vector> Vector for &'a T {
+    fn x(&self) -> f32 {
+        self.x()
+    }
+
+    fn y(&self) -> f32 {
+        self.y()
+    }
 }
 
 macro_rules! impl_vector {
@@ -34,6 +48,22 @@ macro_rules! impl_vector {
                     Self::zero()
                 } else {
                     Self::new(0.0, self.y / self.y.abs())
+                }
+            }
+
+            pub fn min(&self, vec: &Self) -> Self {
+                if self.len() < vec.len() {
+                    *self
+                } else {
+                    *vec
+                }
+            }
+
+            pub fn max(&self, vec: &Self) -> Self {
+                if self.len() > vec.len() {
+                    *self
+                } else {
+                    *vec
                 }
             }
 
