@@ -13,7 +13,12 @@ mod error;
 mod io;
 mod systems;
 
+pub mod prelude {
+    pub use crate::entities::CreateEntity;
+}
+
 pub use crate::config::{Config, ConfigBuilder};
 pub use crate::error::Result;
+pub use crate::io::Io;
 pub use crate::systems::Systems;
 pub use crate::vector::Vector;
