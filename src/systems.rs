@@ -110,8 +110,12 @@ impl<'a> System<'a> for UpdateCollide {
     fn run(&mut self, (e, pos, siz, mut vel, bullet, mut ply, user, blk, lazy): Self::SystemData) {
         let mut map = HashMap::<_, Vel>::new();
 
-        for (e1, p1, s1, v1, _) in (&e, &pos, &siz, &vel, &ply).join() {
-            for (e2, p2, s2, v2, _) in (&e, &pos, &siz, &vel, &blk).join() {
+        for (e1, p1, s1, _) in (&e, &pos, &siz, &ply).join() {
+            for (e2, p2, s2, _) in (&e, &pos, &siz, &blk).join() {
+                let z = Vel::zero();
+                let v1 = vel.get(e1).unwrap_or(&z);
+                let v2 = vel.get(e2).unwrap_or(&z);
+
                 let (v1, v2) = update_vel(p1, s1, v1, p2, s2, v2);
 
                 if let Some(vel) = map.get_mut(&e1) {
