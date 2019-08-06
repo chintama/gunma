@@ -1,40 +1,27 @@
-use crate::components::*;
+use crate::{components::*, events::*};
+use derive_new::new;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use specs::prelude::*;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum Event {
-    Collision,
+///
+/// Resource to indicate which entity the client user is using
+///
+#[derive(new, Default, Clone, Debug)]
+pub struct User {
+    pub id: Option<u64>,
+    pub entity: Option<Entity>,
 }
 
-#[derive(Default, Clone, Debug, Serialize, Deserialize)]
+///
+/// Resource to deliver events
+///
+#[derive(new, Default, Clone, Debug)]
 pub struct Events(pub Vec<Event>);
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PlayerUpdate {
-    pub pos: Pos,
-    pub player: Player,
-    pub dir: Dir,
-    pub vel: Vel,
-    pub acc: Acc,
-}
-
-impl PlayerUpdate {
-    pub fn new(pos: Pos, player: Player, dir: Dir, vel: Vel, acc: Acc) -> Self {
-        Self {
-            pos,
-            player,
-            dir,
-            vel,
-            acc,
-        }
-    }
-}
-
-#[derive(Default, Clone, Debug, Serialize, Deserialize)]
-pub struct PlayerUpdates(pub HashMap<u64, PlayerUpdate>);
-
-#[derive(Default, Clone, Debug, Serialize, Deserialize)]
+///
+/// Resource to handle user inputs
+///
+#[derive(new, Default, Clone, Debug, Serialize, Deserialize)]
 pub struct Action {
     pub jump: bool,
     pub left: bool,

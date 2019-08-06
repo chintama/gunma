@@ -3,6 +3,7 @@ mod vector;
 
 pub mod components;
 pub mod entities;
+pub mod events;
 pub mod protocol;
 pub mod resources;
 

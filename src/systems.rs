@@ -3,7 +3,7 @@ use crate::{
     collide::{cease_vel, collide, normal, toi, update_vel},
     components::*,
     config::Config,
-    entities::{CreateEntity, EntityCreator},
+    entities::*,
     error::Result,
     protocol::*,
     resources::*,
@@ -31,49 +31,67 @@ struct TakeAction;
 impl<'a> System<'a> for TakeAction {
     type SystemData = (
         Entities<'a>,
+        Read<'a, User>,
         Write<'a, Action>,
         ReadStorage<'a, Player>,
-        ReadStorage<'a, User>,
+        ReadStorage<'a, Class>,
         ReadStorage<'a, Pos>,
         ReadStorage<'a, Size>,
         WriteStorage<'a, Vel>,
         ReadStorage<'a, Acc>,
-        WriteStorage<'a, Dir>,
+        WriteStorage<'a, Ori>,
         Read<'a, LazyUpdate>,
     );
 
     fn run(
         &mut self,
-        (e, mut act, player, user, pos, siz, mut vel, acc, mut dir, lazy): Self::SystemData,
+        (e, user, mut act, player, cls, pos, siz, mut vel, acc, mut ori, lazy): Self::SystemData,
     ) {
-        for (player, _, pos, siz, vel, acc, dir) in
-            (&player, &user, &pos, &siz, &mut vel, &acc, &mut dir).join()
-        {
-            if !act.update {
-                continue;
-            }
+        if !act.update {
+            return;
+        }
 
-            if act.jump {
+        let ep = match user.entity {
+            Some(entity) => entity,
+            None => return,
+        };
+
+        if act.jump {
+            vel.get_mut(ep).map(|vel| {
                 vel.y = 5.0;
-            }
-            if act.right {
-                vel.x = 5.0;
-                dir.0 = 1.0;
-            }
-            if act.left {
-                vel.x = -5.0;
-                dir.0 = -1.0;
-            }
-            if act.take {
-                let d = if dir.0 > 0.0 { siz.x } else { -10.0 };
-                lazy.create_entity(&e).create_bullet(
-                    Vel::new(10.0 * dir.0, 0.0),
-                    *pos + Vel::new(d, 0.0),
-                    Bullet::new(player.id, player.class),
-                    Size::new(30.0, 30.0),
-                    Asset(100),
-                );
-            }
+            });
+        }
+
+        let pos = pos.get(ep).unwrap();
+        let siz = siz.get(ep).unwrap();
+        let player = player.get(ep).unwrap();
+        let cls = cls.get(ep).unwrap();
+        let mut vel = vel.get_mut(ep).unwrap();
+        let mut ori = ori.get_mut(ep).unwrap();
+
+        if act.right {
+            vel.x = 5.0;
+            ori.x = 1.0;
+        }
+
+        if act.left {
+            vel.x = -5.0;
+            ori.x = -1.0;
+        }
+
+        if act.take {
+            let d = if ori.x > 0.0 { siz.x } else { -10.0 };
+            lazy.create_entity(&e).create(BulletEntity::new(
+                *pos + Vel::new(d, 0.0),
+                Size::new(30.0, 30.0),
+                Vel::new(10.0 * ori.x, 0.0),
+                Acc::zero(),
+                Asset(100),
+                *ori,
+                Owner(player.0),
+                Class(cls.0),
+                Damage(1),
+            ));
         }
 
         act.clear();
@@ -100,16 +118,22 @@ impl<'a> System<'a> for UpdateCollide {
         ReadStorage<'a, Pos>,
         ReadStorage<'a, Size>,
         WriteStorage<'a, Vel>,
+        WriteStorage<'a, Lives>,
+        ReadStorage<'a, Damage>,
         ReadStorage<'a, Bullet>,
         WriteStorage<'a, Player>,
-        ReadStorage<'a, User>,
+        ReadStorage<'a, Class>,
         ReadStorage<'a, Block>,
         Read<'a, LazyUpdate>,
     );
 
-    fn run(&mut self, (e, pos, siz, mut vel, bullet, mut ply, user, blk, lazy): Self::SystemData) {
+    fn run(
+        &mut self,
+        (e, pos, siz, mut vel, mut lives, dmg, bullet, mut ply, cls, blk, lazy): Self::SystemData,
+    ) {
         let mut map = HashMap::<_, Vel>::new();
 
+        // Player v.s. block
         for (e1, p1, s1, _) in (&e, &pos, &siz, &ply).join() {
             for (e2, p2, s2, _) in (&e, &pos, &siz, &blk).join() {
                 let z = Vel::zero();
@@ -139,6 +163,35 @@ impl<'a> System<'a> for UpdateCollide {
                 None => {}
             }
         }
+
+        // Player v.s. bullet
+        for (e1, p1, s1, cls1, _) in (&e, &pos, &siz, &cls, &bullet).join() {
+            for (e2, p2, s2, cls2, _) in (&e, &pos, &siz, &cls, &ply).join() {
+                if cls1 == cls2 {
+                    continue;
+                }
+                let z = Vel::zero();
+                let v1 = vel.get(e1).unwrap_or(&z);
+                let v2 = vel.get(e2).unwrap_or(&z);
+
+                if collide(p1, s1, v1, p2, s2, v2) {
+                    let dmg = dmg.get(e1).map(|dmg| dmg.0).unwrap_or(0);
+
+                    // Delete bullet
+                    e.delete(e1);
+
+                    // Subtract lives
+                    if let Some(lives) = lives.get_mut(e2) {
+                        lives.0 = lives.0.saturating_sub(dmg);
+
+                        if lives.0 == 0 {
+                            // Delete player too
+                            e.delete(e2);
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -157,22 +210,17 @@ impl<'a> System<'a> for UpdatePos {
 struct OutOfBound;
 
 impl<'a> System<'a> for OutOfBound {
-    type SystemData = (
-        Entities<'a>,
-        ReadStorage<'a, Pos>,
-        ReadStorage<'a, Player>,
-        ReadStorage<'a, User>,
-    );
+    type SystemData = (Entities<'a>, ReadStorage<'a, Pos>, ReadStorage<'a, Player>);
 
-    fn run(&mut self, (e, pos, ply, user): Self::SystemData) {
-        for (plypos, ply, _) in (&pos, &ply, &user).join() {
-            for (e1, pos) in (&e, &pos).join() {
-                let d = *pos - *plypos;
-                if d.len() >= 2000.0 {
-                    e.delete(e1);
-                }
-            }
-        }
+    fn run(&mut self, (e, pos, ply): Self::SystemData) {
+        // for (plypos, ply, _) in (&pos, &ply, &user).join() {
+        //     for (e1, pos) in (&e, &pos).join() {
+        //         let d = *pos - *plypos;
+        //         if d.len() >= 2000.0 {
+        //             e.delete(e1);
+        //         }
+        //     }
+        // }
     }
 }
 
@@ -184,48 +232,26 @@ impl Systems {
     pub fn new() -> Result<Self> {
         let mut world = World::new();
 
+        world.register::<Class>();
+        world.register::<Player>();
+        world.register::<Owner>();
         world.register::<Pos>();
         world.register::<Vel>();
-        world.register::<Acc>();
         world.register::<Size>();
-        world.register::<Player>();
+        world.register::<Acc>();
+        world.register::<Ori>();
+        world.register::<Lives>();
         world.register::<Bullet>();
+        world.register::<Damage>();
         world.register::<Landmark>();
-        world.register::<Block>();
         world.register::<Background>();
-        world.register::<Dir>();
+        world.register::<Block>();
         world.register::<Asset>();
-        world.register::<User>();
         world.insert(Action::default());
-        world.insert(PlayerUpdates::default());
+        world.insert(User::default());
         world.insert(Events::default());
 
         Ok(Self { world })
-    }
-
-    ///
-    /// Add an action for the current user
-    ///
-    pub fn add_action(&mut self, act: Action) {
-        let mut action = self.world.write_resource::<Action>();
-        *action = act;
-    }
-
-    ///
-    /// Update player state
-    ///
-    pub fn update_player(&mut self, pos: Pos, player: Player, dir: Dir, vel: Vel, acc: Acc) {
-        let mut updates = self.world.write_resource::<PlayerUpdates>();
-        updates
-            .0
-            .insert(player.id, PlayerUpdate::new(pos, player, dir, vel, acc));
-    }
-
-    ///
-    /// Create a new entity
-    ///
-    pub fn create_entity(&mut self) -> EntityCreator<EntityBuilder> {
-        self.world.create_entity().into()
     }
 
     ///
@@ -242,15 +268,15 @@ impl Systems {
         self.world.maintain();
     }
 
-    ///
-    /// Retrieve all events happened in the last turn
-    ///
-    pub fn take_events(&mut self) -> Vec<Event> {
-        let mut events = self.world.write_resource::<Events>();
-        events.0.split_off(0)
+    pub fn world(&self) -> &World {
+        &self.world
     }
 
-    pub fn render<'a, T: System<'a>>(&'a mut self, mut sys: T) {
+    pub fn world_mut(&mut self) -> &mut World {
+        &mut self.world
+    }
+
+    pub fn run<'a, T: System<'a>>(&'a mut self, mut sys: T) {
         sys.run_now(&mut self.world);
     }
 }

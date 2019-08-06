@@ -1,44 +1,31 @@
-use crate::{components::*, resources::*};
+use crate::{components::*, entities::*, resources::*};
+use derive_new::new;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(new, Clone, Debug, Serialize, Deserialize)]
 pub struct GetTerrain {
     pub pos: Pos,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(new, Clone, Debug, Serialize, Deserialize)]
 pub struct Terrain {
-    pub id: u64,
-    pub pos: Pos,
-    pub size: Size,
-    pub asset: Asset,
+    pub entity: TerrainEntity,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(new, Clone, Debug, Serialize, Deserialize)]
 pub struct SendAction {
-    pub player: Player,
-    pub pos: Pos,
-    pub vel: Vel,
-    pub acc: Acc,
-    pub dir: Dir,
+    pub player: PlayerEntity,
     pub action: Action,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(new, Clone, Debug, Serialize, Deserialize)]
 pub struct Login {
     pub cls: Class,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(new, Clone, Debug, Serialize, Deserialize)]
 pub struct LoginAck {
-    pub player: Player,
-    pub spawn: Pos,
-}
-
-impl LoginAck {
-    pub fn new(player: Player, spawn: Pos) -> Self {
-        Self { player, spawn }
-    }
+    pub entity: PlayerEntity,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

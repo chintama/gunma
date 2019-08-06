@@ -52,6 +52,23 @@ impl Io {
             .send(Message::SendAction(info))
     }
 
+    pub fn recv_actions(&mut self, max: usize) -> Result<Vec<SendAction>> {
+        let mut items = Vec::new();
+
+        for _ in 0..max {
+            match self.game_client.as_mut().unwrap().try_recv()? {
+                Some(Message::SendAction(item)) => {
+                    items.push(item);
+                }
+                _ => {
+                    break;
+                }
+            }
+        }
+
+        Ok(items)
+    }
+
     pub fn get_all_terrain(&mut self) -> Result<Vec<Terrain>> {
         self.terrain_client.send(Message::GetAllTerrain)?;
 
