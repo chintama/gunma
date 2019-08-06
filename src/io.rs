@@ -3,6 +3,7 @@ use crate::{
     components::*,
     config::Config,
     error::{Error, Result},
+    events::*,
     protocol::*,
 };
 use log::*;
@@ -45,22 +46,26 @@ impl Io {
         }
     }
 
-    pub fn send_action(&mut self, info: SendAction) -> Result<()> {
+    pub fn send_event(&mut self, ev: Event) -> Result<()> {
         self.game_client
             .as_mut()
             .expect("Server tries to send action")
-            .send(Message::SendAction(info))
+            .send(Message::Event(ev))
     }
 
-    pub fn recv_actions(&mut self, max: usize) -> Result<Vec<SendAction>> {
+    pub fn recv_events(&mut self, max: usize) -> Result<Vec<Event>> {
         let mut items = Vec::new();
 
         for _ in 0..max {
             match self.game_client.as_mut().unwrap().try_recv()? {
-                Some(Message::SendAction(item)) => {
+                Some(Message::Event(item)) => {
                     items.push(item);
                 }
-                _ => {
+                None => {
+                    break;
+                }
+                e => {
+                    warn!("Received invalid message: {:?}", e);
                     break;
                 }
             }

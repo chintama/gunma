@@ -1,4 +1,4 @@
-use crate::vector::Vector;
+use crate::{resources::ObjectId, vector::Vector};
 use derive_new::new;
 use serde::{Deserialize, Serialize};
 use specs::prelude::*;
@@ -46,6 +46,9 @@ pub struct Background;
 
 #[derive(new, Component, Clone, Debug, Serialize, Deserialize)]
 pub struct Block;
+
+#[derive(new, Component, Clone, Debug, Serialize, Deserialize)]
+pub struct User;
 
 #[derive(new, Component, PartialEq, Eq, Hash, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Asset(pub u64);

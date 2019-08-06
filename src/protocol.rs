@@ -1,4 +1,4 @@
-use crate::{components::*, entities::*, resources::*};
+use crate::{components::*, entities::*, events::*, resources::*};
 use derive_new::new;
 use serde::{Deserialize, Serialize};
 
@@ -10,12 +10,6 @@ pub struct GetTerrain {
 #[derive(new, Clone, Debug, Serialize, Deserialize)]
 pub struct Terrain {
     pub entity: TerrainEntity,
-}
-
-#[derive(new, Clone, Debug, Serialize, Deserialize)]
-pub struct SendAction {
-    pub player: PlayerEntity,
-    pub action: Action,
 }
 
 #[derive(new, Clone, Debug, Serialize, Deserialize)]
@@ -36,5 +30,5 @@ pub enum Message {
     GetAllTerrain,
     Terrain(Terrain),
     EndTerrain,
-    SendAction(SendAction),
+    Event(Event),
 }
