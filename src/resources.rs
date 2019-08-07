@@ -1,26 +1,11 @@
-use crate::{components::*, events::*, io::Io};
+use crate::{components::*, events::*};
 use derive_new::new;
 use serde::{Deserialize, Serialize};
 use specs::prelude::*;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     sync::{Arc, Mutex, MutexGuard},
 };
-
-///
-/// Resource to indicate which entity the client user is using
-///
-#[derive(new, Default, Clone, Debug)]
-pub struct UserEntity {
-    pub id: Option<u64>,
-    pub entity: Option<Entity>,
-}
-
-///
-/// Resource to deliver events
-///
-#[derive(new, Default, Clone, Debug)]
-pub struct Events(pub Vec<Event>);
 
 ///
 /// Resource to handle user inputs
@@ -69,27 +54,25 @@ impl Action {
 ///
 /// Resource to communicate each other
 ///
-#[derive(new, Default, Clone)]
-pub struct Network(pub Option<Arc<Mutex<Io>>>);
+#[derive(new, Clone)]
+pub struct Res<T>(pub Option<Arc<Mutex<T>>>);
 
-impl Network {
-    pub fn set(&mut self, io: Io) {
-        self.0 = Some(Arc::new(Mutex::new(io)));
+impl<T> std::default::Default for Res<T> {
+    fn default() -> Self {
+        Self(None)
+    }
+}
+
+impl<T> Res<T> {
+    pub fn set(&mut self, inner: T) {
+        self.0 = Some(Arc::new(Mutex::new(inner)));
     }
 
-    pub fn get<'a>(&'a self) -> MutexGuard<'a, Io> {
+    pub fn get<'a>(&'a self) -> MutexGuard<'a, T> {
         self.0.as_ref().unwrap().lock().unwrap()
     }
 }
 
-///
-/// System-wide global unique id assigned by server side
-///
-#[derive(new, PartialEq, Eq, Hash, Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct ObjectId(pub u64);
-
-///
-/// Mapping between object ids (system-wide) and entities (client-wide)
-///
-#[derive(new, Default, Clone)]
-pub struct Objects(pub HashMap<ObjectId, Entity>);
+pub type UserEntity = Res<(u64, Entity)>;
+pub type ClientQueue = Res<wsq::ClientQueue<Event>>;
+pub type ServerQueue = Res<wsq::ServerQueue<Event>>;

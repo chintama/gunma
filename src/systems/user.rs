@@ -1,4 +1,4 @@
-use crate::{components::*, entities::*, resources::*};
+use crate::{components::*, entities::*, resources::*, events::Event};
 use specs::prelude::*;
 
 pub struct TakeAction;
@@ -26,10 +26,7 @@ impl<'a> System<'a> for TakeAction {
             return;
         }
 
-        let ep = match user.entity {
-            Some(entity) => entity,
-            None => return,
-        };
+        let ep = user.get().1;
 
         let pos = pos.get(ep).unwrap();
         let siz = siz.get(ep).unwrap();
@@ -117,5 +114,21 @@ impl<'a> System<'a> for OutOfBound {
         //         }
         //     }
         // }
+    }
+}
+
+pub struct Reconcile;
+
+impl<'a> System<'a> for Reconcile {
+    type SystemData = (Entities<'a>,
+                       Read<'a, ClientQueue>,
+                       ReadStorage<'a, Player>,
+                       ReadStorage<'a, Bullet>,
+                       ReadStorage<'a, Pos>,
+                       ReadStorage<'a, Vel>,
+                       ReadStorage<'a, Acc>);
+
+    fn run(&mut self, (e, events, pos, ply): Self::SystemData) {
+        
     }
 }

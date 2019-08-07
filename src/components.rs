@@ -1,4 +1,4 @@
-use crate::{resources::ObjectId, vector::Vector};
+use crate::vector::Vector;
 use derive_new::new;
 use serde::{Deserialize, Serialize};
 use specs::prelude::*;
