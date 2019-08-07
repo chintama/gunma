@@ -62,26 +62,31 @@ impl Systems {
         sys.run_now(&mut self.world);
     }
 
-    pub fn client_login(&mut self) {
+    pub fn client_login(&mut self, cls: Class) {
         let mut queue = wsq::ClientQueue::new("ws://127.0.0.1:8980").unwrap();
-        queue.push(Event::Login(Login::new(CLASS_CHIBA))).unwrap();
+        queue.push(Event::Login(Login::new(cls))).unwrap();
         let ack = match queue.pop().unwrap() {
             Event::LoginAck(ack) => ack,
             e => panic!("Received unexpected message on login: {:?}", e),
         };
         self.world.write_resource::<ClientQueue>().set(queue);
 
-        let entity = self.world.create_entity()
-            .with(Player::new(ack.id))
-            .with(CLASS_CHIBA)
-            .with(Size::new(50.0, 40.0))
-            .with(Asset::new(1))
-            .with(Vel::zero())
-            .with(Acc::gravity())
-            .with(ack.pos)
-            .with(ack.lives)
-            .with(ack.ori)
-            .build();
+        let entity = self.world.create_player(ObjectId::new(ack.id, 0),
+                                              cls,
+                                              ack.pos,
+                                              ack.lives,
+                                              ack.ori
+        );
+            // .with(Player::new(ack.id))
+            // .with(CLASS_CHIBA)
+            // .with(Size::new(50.0, 40.0))
+            // .with(Asset::new(1))
+            // .with(Vel::zero())
+            // .with(Acc::gravity())
+            // .with(ack.pos)
+            // .with(ack.lives)
+            // .with(ack.ori)
+            // .build();
 
         self.world.write_resource::<UserEntity>().set((ack.id, entity));
     }

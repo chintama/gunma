@@ -11,12 +11,6 @@ pub const CLASS_NEUTRAL: Class = Class(0);
 pub const CLASS_CHIBA: Class = Class(1);
 pub const CLASS_SAITAMA: Class = Class(2);
 
-#[derive(new, Component, Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct Player(pub u64);
-
-#[derive(new, Component, Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct Owner(pub u64);
-
 impl_vector!(Pos);
 impl_vector!(Vel);
 impl_vector!(Size);
@@ -30,7 +24,13 @@ impl Acc {
 }
 
 #[derive(new, Component, Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct ObjectId(pub u64, pub u64);
+
+#[derive(new, Component, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Lives(pub u64);
+
+#[derive(new, Component, Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct Player;
 
 #[derive(new, Component, Clone, Debug, Serialize, Deserialize)]
 pub struct Bullet;
