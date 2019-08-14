@@ -23,14 +23,14 @@ impl Acc {
     }
 }
 
-#[derive(new, Component, Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(new, PartialEq, Eq, Hash, Component, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct ObjectId(pub u64, pub u64);
 
 #[derive(new, Component, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Lives(pub u64);
 
 #[derive(new, Component, Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct Player;
+pub struct Player(pub u64);
 
 #[derive(new, Component, Clone, Debug, Serialize, Deserialize)]
 pub struct Bullet;

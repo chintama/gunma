@@ -36,12 +36,17 @@ pub struct Input {
 ///
 #[derive(new, Clone, Debug, Serialize, Deserialize)]
 pub struct PlayerState {
-    pub id: u64,
     pub seqno: u64,
+    pub id: ObjectId,
+    pub player: Player,
     pub pos: Pos,
     pub vel: Vel,
     pub acc: Acc,
     pub ori: Ori,
+    pub size: Size,
+    pub asset: Asset,
+    pub cls: Class,
+    pub lives: Lives,
 }
 
 ///
