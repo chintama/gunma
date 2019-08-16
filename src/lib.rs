@@ -6,6 +6,7 @@ pub mod entities;
 pub mod events;
 pub mod resources;
 
+mod client;
 mod collide;
 mod config;
 mod error;
@@ -19,3 +20,5 @@ pub use crate::config::{Config, ConfigBuilder};
 pub use crate::error::Result;
 pub use crate::systems::Systems;
 pub use crate::vector::Vector;
+
+pub use crate::client::screen::run_client;

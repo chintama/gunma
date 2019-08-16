@@ -1,12 +1,14 @@
-use crate::{components::*, entities::*, resources::Action};
+use crate::{components::*, resources::Action};
 use derive_new::new;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 ///
 /// Login request
 ///
 #[derive(new, Clone, Debug, Serialize, Deserialize)]
 pub struct Login {
+    /// Class requested by a user
     pub cls: Class,
 }
 
@@ -15,10 +17,8 @@ pub struct Login {
 ///
 #[derive(new, Clone, Debug, Serialize, Deserialize)]
 pub struct LoginAck {
-    pub id: u64,
-    pub pos: Pos,
-    pub ori: Ori,
-    pub lives: Lives,
+    /// Player initial state
+    pub ps: PlayerState,
 }
 
 ///
@@ -26,9 +26,12 @@ pub struct LoginAck {
 ///
 #[derive(new, Clone, Debug, Serialize, Deserialize)]
 pub struct Input {
-    pub id: u64,
+    /// Uuid of the user
+    pub id: Uuid,
+    /// Sequence number of the input
     pub seqno: u64,
-    pub action: Action,
+    /// Content of the input
+    pub act: Action,
 }
 
 ///
@@ -36,17 +39,15 @@ pub struct Input {
 ///
 #[derive(new, Clone, Debug, Serialize, Deserialize)]
 pub struct PlayerState {
+    /// Sequence number of the event
     pub seqno: u64,
-    pub id: ObjectId,
-    pub player: Player,
     pub pos: Pos,
     pub vel: Vel,
     pub acc: Acc,
     pub ori: Ori,
-    pub size: Size,
-    pub asset: Asset,
-    pub cls: Class,
-    pub lives: Lives,
+    pub siz: Size,
+    pub aid: AssetId,
+    pub ply: Player,
 }
 
 ///
@@ -54,7 +55,7 @@ pub struct PlayerState {
 ///
 #[derive(new, Clone, Debug, Serialize, Deserialize)]
 pub struct State {
-    pub players: Vec<PlayerState>,
+    pub plys: Vec<PlayerState>,
 }
 
 ///

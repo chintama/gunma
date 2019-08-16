@@ -10,11 +10,11 @@ pub trait Vector: Sized {
 
 impl<'a, T: Vector> Vector for &'a T {
     fn x(&self) -> f32 {
-        self.x()
+        (*self).x()
     }
 
     fn y(&self) -> f32 {
-        self.y()
+        (*self).y()
     }
 }
 

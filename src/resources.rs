@@ -1,11 +1,9 @@
-use crate::{components::*, events::*};
+use crate::events::*;
 use derive_new::new;
 use serde::{Deserialize, Serialize};
 use specs::prelude::*;
-use std::{
-    collections::{HashMap, VecDeque},
-    sync::{Arc, Mutex, MutexGuard},
-};
+use std::sync::{Arc, Mutex, MutexGuard};
+use uuid::Uuid;
 
 ///
 /// Resource to handle user inputs
@@ -73,6 +71,6 @@ impl<T> Res<T> {
     }
 }
 
-pub type UserEntity = Res<(u64, Entity)>;
+pub type UserEntity = Res<(Uuid, Entity)>;
 pub type ClientQueue = Res<wsq::ClientQueue<Event>>;
 pub type ServerQueue = Res<wsq::ServerQueue<Event>>;

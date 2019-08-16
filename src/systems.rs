@@ -1,23 +1,14 @@
-use crate::{
-    collide::{cease_vel, collide, normal, toi, update_vel},
-    components::*,
-    config::Config,
-    entities::*,
-    error::Result,
-    events::*,
-    resources::*,
-    vector::Vector,
-};
-use specs::{prelude::*, world::EntityBuilder};
-use std::collections::HashMap;
+use crate::{components::*, entities::*, error::Result, events::*, resources::*};
+use specs::prelude::*;
 
 use log::*;
 
-mod common;
-mod print;
-mod user;
+pub mod client;
+pub mod common;
+pub mod render;
+pub mod server;
 
-pub use self::{common::*, print::*, user::*};
+pub use self::{client::*, common::*, server::*};
 
 pub struct Systems {
     pub(crate) world: World,
@@ -27,30 +18,27 @@ impl Systems {
     pub fn new() -> Result<Self> {
         let mut world = World::new();
 
-        world.register::<ObjectId>();
-        world.register::<Class>();
-        world.register::<Player>();
         world.register::<Pos>();
         world.register::<Vel>();
-        world.register::<Size>();
         world.register::<Acc>();
         world.register::<Ori>();
-        world.register::<Lives>();
+        world.register::<Size>();
+        world.register::<AssetId>();
+        world.register::<Player>();
         world.register::<Bullet>();
-        world.register::<Damage>();
         world.register::<Landmark>();
-        world.register::<Background>();
         world.register::<Block>();
-        world.register::<Asset>();
 
         world.insert(Action::default());
         world.insert(UserEntity::default());
         world.insert(ServerQueue::default());
         world.insert(ClientQueue::default());
 
-        world
-            .create_entity()
-            .create_terrain(Pos::new(0.0, 0.0), Size::new(1000.0, 100.0));
+        world.create_entity().create_terrain(
+            Pos::new(0.0, 0.0),
+            Size::new(1000.0, 100.0),
+            AssetId::new(100),
+        );
 
         Ok(Self { world })
     }
@@ -69,7 +57,7 @@ impl Systems {
 
     pub fn client_login(&mut self, cls: Class) {
         info!("Connecting");
-        let mut queue = wsq::ClientQueue::new("ws://127.0.0.1:8980").unwrap();
+        let queue = wsq::ClientQueue::new("ws://127.0.0.1:8980").unwrap();
         info!("Connected");
 
         info!("Logging in as {:?}", cls);
@@ -89,18 +77,14 @@ impl Systems {
         info!("Logged in: {:?}", ack);
         self.world.write_resource::<ClientQueue>().set(queue);
 
-        let entity = self.world.create_entity().create_player(
-            ObjectId::new(ack.id, 0),
-            Player(0),
-            cls,
-            ack.pos,
-            ack.lives,
-            ack.ori,
-        );
+        let entity = self
+            .world
+            .create_entity()
+            .create_player_by_state(ack.ps.clone());
 
         self.world
             .write_resource::<UserEntity>()
-            .set((ack.id, entity));
+            .set((ack.ps.ply.id, entity));
     }
 
     pub fn client_update(&mut self, action: Option<Action>) {
@@ -126,7 +110,7 @@ impl Systems {
 
     pub fn server_start(&mut self) {
         // Connect to server
-        let mut queue = wsq::ServerQueue::new("127.0.0.1:8980").unwrap();
+        let queue = wsq::ServerQueue::new("127.0.0.1:8980").unwrap();
 
         // Setup
         self.world.write_resource::<ServerQueue>().set(queue);

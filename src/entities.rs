@@ -1,6 +1,4 @@
-use crate::{components::*, systems::Systems};
-use derive_new::new;
-use serde::{Deserialize, Serialize};
+use crate::{components::*, events::PlayerState};
 use specs::{
     prelude::*,
     world::{EntityBuilder, LazyBuilder},
@@ -11,57 +9,58 @@ pub trait CreateEntity<T: Builder>: Sized {
 
     fn create_player(
         self,
-        id: ObjectId,
-        player: Player,
-        cls: Class,
         pos: Pos,
-        lives: Lives,
+        vel: Vel,
+        acc: Acc,
         ori: Ori,
+        siz: Size,
+        aid: AssetId,
+        ply: Player,
     ) -> Entity {
         self.builder()
-            .with(player)
-            .with(Size::new(50.0, 40.0))
-            .with(Asset::new(1))
-            .with(Vel::zero())
-            .with(Acc::gravity())
-            .with(id)
-            .with(cls)
             .with(pos)
-            .with(lives)
+            .with(vel)
+            .with(acc)
             .with(ori)
+            .with(siz)
+            .with(aid)
+            .with(ply)
             .build()
     }
 
-    fn create_terrain(self, pos: Pos, size: Size) -> Entity {
+    fn create_player_by_state(self, ps: PlayerState) -> Entity {
+        self.create_player(ps.pos, ps.vel, ps.acc, ps.ori, ps.siz, ps.aid, ps.ply)
+    }
+
+    fn create_terrain(self, pos: Pos, siz: Size, aid: AssetId) -> Entity {
         self.builder()
-            .with(Block)
-            .with(Background)
             .with(pos)
-            .with(size)
-            .with(Asset(200))
+            .with(siz)
+            .with(aid)
+            .with(Block)
             .build()
+    }
+
+    fn create_background(self, pos: Pos, siz: Size, aid: AssetId) -> Entity {
+        self.builder().with(pos).with(siz).with(aid).build()
     }
 
     fn create_bullet(
         self,
-        id: ObjectId,
-        cls: Class,
         pos: Pos,
         vel: Vel,
-        dmg: Damage,
         ori: Ori,
+        siz: Size,
+        aid: AssetId,
+        blt: Bullet,
     ) -> Entity {
         self.builder()
-            .with(Bullet)
-            .with(Size::new(30.0, 30.0))
-            .with(Asset::new(100))
-            .with(Acc::zero())
-            .with(id)
-            .with(cls)
             .with(pos)
             .with(vel)
-            .with(dmg)
             .with(ori)
+            .with(siz)
+            .with(aid)
+            .with(blt)
             .build()
     }
 }
