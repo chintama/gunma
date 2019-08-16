@@ -19,4 +19,5 @@ shred = "0.9"
 shred-derive = "0.6"
 quicksilver = "0.3"
 econf = "0.1"
+structopt = "0.2"
 wsq = { path = "../wsq" }
