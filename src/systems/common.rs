@@ -5,6 +5,18 @@ use crate::{
 use specs::prelude::*;
 use std::collections::HashMap;
 
+pub struct UpdatePos;
+
+impl<'a> System<'a> for UpdatePos {
+    type SystemData = (WriteStorage<'a, Pos>, ReadStorage<'a, Vel>);
+
+    fn run(&mut self, (mut pos, vel): Self::SystemData) {
+        for (pos, vel) in (&mut pos, &vel).join() {
+            *pos += *vel;
+        }
+    }
+}
+
 pub struct UpdateVel;
 
 impl<'a> System<'a> for UpdateVel {
@@ -17,39 +29,19 @@ impl<'a> System<'a> for UpdateVel {
     }
 }
 
-pub struct UpdatePos;
-
-impl<'a> System<'a> for UpdatePos {
-    type SystemData = (WriteStorage<'a, Pos>, WriteStorage<'a, Vel>);
-
-    fn run(&mut self, (mut pos, vel): Self::SystemData) {
-        for (pos, vel) in (&mut pos, &vel).join() {
-            *pos += *vel;
-        }
-    }
-}
-
 pub struct ReduceVel;
 
 impl<'a> System<'a> for ReduceVel {
     type SystemData = (
         Entities<'a>,
         ReadStorage<'a, Pos>,
-        ReadStorage<'a, Size>,
         WriteStorage<'a, Vel>,
-        WriteStorage<'a, Lives>,
-        ReadStorage<'a, Damage>,
-        ReadStorage<'a, Bullet>,
-        WriteStorage<'a, Player>,
-        ReadStorage<'a, Class>,
+        ReadStorage<'a, Size>,
+        ReadStorage<'a, Player>,
         ReadStorage<'a, Block>,
-        Read<'a, LazyUpdate>,
     );
 
-    fn run(
-        &mut self,
-        (e, pos, siz, mut vel, mut lives, dmg, bullet, mut ply, cls, blk, lazy): Self::SystemData,
-    ) {
+    fn run(&mut self, (e, pos, mut vel, siz, ply, blk): Self::SystemData) {
         let mut map = HashMap::<_, Vel>::new();
 
         // Player v.s. block
@@ -91,25 +83,17 @@ impl<'a> System<'a> for CheckCollide {
     type SystemData = (
         Entities<'a>,
         ReadStorage<'a, Pos>,
+        ReadStorage<'a, Vel>,
         ReadStorage<'a, Size>,
-        WriteStorage<'a, Vel>,
-        WriteStorage<'a, Lives>,
-        ReadStorage<'a, Damage>,
         ReadStorage<'a, Bullet>,
         WriteStorage<'a, Player>,
-        ReadStorage<'a, Class>,
-        ReadStorage<'a, Block>,
-        Read<'a, LazyUpdate>,
     );
 
-    fn run(
-        &mut self,
-        (e, pos, siz, mut vel, mut lives, dmg, bullet, mut ply, cls, blk, lazy): Self::SystemData,
-    ) {
+    fn run(&mut self, (e, pos, vel, siz, blt, mut ply): Self::SystemData) {
         // Player v.s. bullet
-        for (e1, p1, s1, cls1, _) in (&e, &pos, &siz, &cls, &bullet).join() {
-            for (e2, p2, s2, cls2, _) in (&e, &pos, &siz, &cls, &ply).join() {
-                if cls1 == cls2 {
+        for (e1, p1, s1, blt) in (&e, &pos, &siz, &blt).join() {
+            for (e2, p2, s2, ply) in (&e, &pos, &siz, &mut ply).join() {
+                if blt.cls == ply.cls {
                     continue;
                 }
                 let z = Vel::zero();
@@ -117,19 +101,14 @@ impl<'a> System<'a> for CheckCollide {
                 let v2 = vel.get(e2).unwrap_or(&z);
 
                 if collide(p1, s1, v1, p2, s2, v2) {
-                    let dmg = dmg.get(e1).map(|dmg| dmg.0).unwrap_or(0);
-
                     // Delete bullet
-                    e.delete(e1);
+                    let _ = e.delete(e1);
 
-                    // Subtract lives
-                    if let Some(lives) = lives.get_mut(e2) {
-                        lives.0 = lives.0.saturating_sub(dmg);
+                    ply.lives = ply.lives.saturating_sub(blt.dmg);
 
-                        if lives.0 == 0 {
-                            // Delete player too
-                            e.delete(e2);
-                        }
+                    if ply.lives == 0 {
+                        // Player dies
+                        let _ = e.delete(e2);
                     }
                 }
             }
