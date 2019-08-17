@@ -2,6 +2,7 @@ use crate::{
     collide::{collide, update_vel},
     components::*,
 };
+use log::*;
 use specs::prelude::*;
 use std::collections::HashMap;
 
@@ -20,11 +21,19 @@ impl<'a> System<'a> for UpdatePos {
 pub struct UpdateVel;
 
 impl<'a> System<'a> for UpdateVel {
-    type SystemData = (WriteStorage<'a, Vel>, ReadStorage<'a, Acc>);
+    type SystemData = (
+        WriteStorage<'a, Vel>,
+        ReadStorage<'a, Acc>,
+        WriteStorage<'a, Player>,
+    );
 
-    fn run(&mut self, (mut vel, acc): Self::SystemData) {
-        for (vel, acc) in (&mut vel, &acc).join() {
-            *vel += *acc;
+    fn run(&mut self, (mut vel, acc, mut ply): Self::SystemData) {
+        for (vel, acc, ply) in (&mut vel, &acc, ply.maybe()).join() {
+            if !ply.map(|p| p.land).unwrap_or(false) {
+                *vel += *acc;
+            } else {
+                vel.x *= 0.98;
+            }
         }
     }
 }
@@ -36,22 +45,31 @@ impl<'a> System<'a> for ReduceVel {
         Entities<'a>,
         ReadStorage<'a, Pos>,
         WriteStorage<'a, Vel>,
+        ReadStorage<'a, Acc>,
         ReadStorage<'a, Size>,
-        ReadStorage<'a, Player>,
+        WriteStorage<'a, Player>,
         ReadStorage<'a, Block>,
     );
 
-    fn run(&mut self, (e, pos, mut vel, siz, ply, blk): Self::SystemData) {
+    fn run(&mut self, (e, pos, mut vel, acc, siz, mut ply, blk): Self::SystemData) {
         let mut map = HashMap::<_, Vel>::new();
 
         // Player v.s. block
-        for (e1, p1, s1, _) in (&e, &pos, &siz, &ply).join() {
+        for (e1, p1, s1, ply) in (&e, &pos, &siz, &mut ply).join() {
+            let mut land = false;
+
             for (e2, p2, s2, _) in (&e, &pos, &siz, &blk).join() {
                 let z = Vel::zero();
                 let v1 = vel.get(e1).unwrap_or(&z);
                 let v2 = vel.get(e2).unwrap_or(&z);
 
-                let (v1, v2) = update_vel(p1, s1, v1, p2, s2, v2);
+                let ((n, v1), (_, v2)) = update_vel(p1, s1, &v1, p2, s2, v2);
+
+                if let Some(n) = n {
+                    if n.y < 0.0 {
+                        land = true;
+                    }
+                }
 
                 if let Some(vel) = map.get_mut(&e1) {
                     *vel = vel.min(&v1);
@@ -64,6 +82,8 @@ impl<'a> System<'a> for ReduceVel {
                     map.insert(e2, v2);
                 }
             }
+
+            ply.land = land;
         }
 
         for (e, v) in map {

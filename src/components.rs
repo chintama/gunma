@@ -61,12 +61,13 @@ pub struct Player {
     pub seqno: u64,
     pub cls: Class,
     pub lives: u64,
+    pub land: bool,
 }
 
 impl Player {
     /// Spawn a new player
     pub fn spawn(lives: u64, cls: Class) -> Self {
-        Self::new(Uuid::new_v4(), 0, cls, lives)
+        Self::new(Uuid::new_v4(), 0, cls, lives, false)
     }
 
     /// Spawn a bullet from the player

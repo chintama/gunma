@@ -42,8 +42,8 @@ impl<'a> System<'a> for TakeAction {
         let mut vel = vel.get_mut(ep).unwrap();
         let mut ori = ori.get_mut(ep).unwrap();
 
-        if act.jump {
-            vel.y = 5.0;
+        if act.jump && ply.land {
+            vel.y = 8.0;
         }
 
         if act.right {

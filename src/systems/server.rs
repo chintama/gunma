@@ -44,8 +44,8 @@ impl<'a> System<'a> for Input {
                         None => continue,
                     };
 
-                    if input.act.jump {
-                        vel.y = 5.0;
+                    if input.act.jump && ply.land {
+                        vel.y = 8.0;
                     }
 
                     if input.act.right {

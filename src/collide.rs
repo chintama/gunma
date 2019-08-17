@@ -1,4 +1,5 @@
 use crate::components::*;
+use log::*;
 
 use ncollide2d::{
     math::Isometry,
@@ -38,8 +39,8 @@ pub fn normal(p1: &Pos, s1: &Size, p2: &Pos, s2: &Size) -> Option<Vel> {
     })
 }
 
-pub fn cease_vel(p1: &Pos, s1: &Size, v1: &Vel, p2: &Pos, s2: &Size) -> Vel {
-    let vel = match normal(p1, s1, p2, s2) {
+pub fn cease_vel(p1: &Pos, s1: &Size, v1: &Vel, p2: &Pos, s2: &Size) -> (Option<Vel>, Vel) {
+    let res = match normal(p1, s1, p2, s2) {
         Some(n) => {
             let mut v = v1.clone();
 
@@ -47,25 +48,31 @@ pub fn cease_vel(p1: &Pos, s1: &Size, v1: &Vel, p2: &Pos, s2: &Size) -> Vel {
                 v.x = 0.0;
             }
             if n.y * v1.y > 0.0 {
-                v.x *= 0.9;
                 v.y = 0.0;
             }
 
-            v
+            (Some(n), v)
         }
-        None => Vel::zero(),
+        None => (None, Vel::zero()),
     };
 
-    vel
+    res
 }
 
-pub fn update_vel(p1: &Pos, s1: &Size, v1: &Vel, p2: &Pos, s2: &Size, v2: &Vel) -> (Vel, Vel) {
+pub fn update_vel(
+    p1: &Pos,
+    s1: &Size,
+    v1: &Vel,
+    p2: &Pos,
+    s2: &Size,
+    v2: &Vel,
+) -> ((Option<Vel>, Vel), (Option<Vel>, Vel)) {
     let toi = toi(p1, s1, v1, p2, s2, v2);
 
     if toi == 0.0 {
         (cease_vel(p1, s1, v1, p2, s2), cease_vel(p2, s2, v2, p1, s1))
     } else {
-        (*v1 * toi, *v2 * toi)
+        ((None, *v1 * toi), (None, *v2 * toi))
     }
 }
 
