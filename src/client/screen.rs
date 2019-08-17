@@ -8,14 +8,14 @@ use crate::{
     systems::{render::Render, Systems},
 };
 use econf::load;
+use log::*;
 use quicksilver::{
-    geom::Vector,
     input::{ButtonState, Key},
     lifecycle::{self, Event, Settings, State, Window},
     Result,
 };
 
-struct Screen {
+pub struct Screen {
     sys: Systems,
     action: Action,
     assets: AssetsMap,
@@ -28,6 +28,8 @@ impl State for Screen {
         let mut sys = Systems::new().unwrap();
 
         sys.client_login(Class(cfg.class));
+
+        info!("Creating screen");
 
         Ok(Screen {
             action: Action::default(),
@@ -73,8 +75,4 @@ impl State for Screen {
         self.sys.run(render);
         Ok(())
     }
-}
-
-pub fn run_client() {
-    lifecycle::run::<Screen>("Chintama", Vector::new(800, 600), Settings::default());
 }

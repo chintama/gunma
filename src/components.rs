@@ -58,6 +58,7 @@ pub struct AssetId(pub u64);
 #[derive(new, Component, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Player {
     pub id: Uuid,
+    pub seqno: u64,
     pub cls: Class,
     pub lives: u64,
 }
@@ -65,19 +66,20 @@ pub struct Player {
 impl Player {
     /// Spawn a new player
     pub fn spawn(lives: u64, cls: Class) -> Self {
-        Self::new(Uuid::new_v4(), cls, lives)
+        Self::new(Uuid::new_v4(), 0, cls, lives)
     }
 
     /// Spawn a bullet from the player
-    pub fn bullet(&self, dmg: u64) -> Bullet {
-        Bullet::new(Uuid::new_v4(), self.id, self.cls, dmg)
+    pub fn bullet(&mut self, dmg: u64) -> Bullet {
+        self.seqno += 1;
+        Bullet::new(self.id, self.seqno, self.cls, dmg)
     }
 }
 
 #[derive(new, Component, Clone, Debug, Serialize, Deserialize)]
 pub struct Bullet {
-    pub id: Uuid,
     pub pid: Uuid,
+    pub seqno: u64,
     pub cls: Class,
     pub dmg: u64,
 }

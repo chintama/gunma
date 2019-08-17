@@ -51,6 +51,22 @@ pub struct PlayerState {
 }
 
 ///
+/// Bullet state
+///
+#[derive(new, Clone, Debug, Serialize, Deserialize)]
+pub struct BulletState {
+    /// Sequence number of the event
+    pub seqno: u64,
+    pub pos: Pos,
+    pub vel: Vel,
+    pub acc: Acc,
+    pub ori: Ori,
+    pub siz: Size,
+    pub aid: AssetId,
+    pub blt: Bullet,
+}
+
+///
 /// World state
 ///
 #[derive(new, Clone, Debug, Serialize, Deserialize)]

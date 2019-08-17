@@ -6,7 +6,10 @@ use std::collections::HashMap;
 pub type AssetsMap = HashMap<AssetId, Image>;
 
 pub fn load_image(s: &str) -> Image {
-    Image::load(s).wait().unwrap()
+    info!("Loading {}", s);
+    let img = Image::load(s).wait().unwrap();
+    info!("Loaded {}", s);
+    img
 }
 
 pub fn load_assets() -> AssetsMap {

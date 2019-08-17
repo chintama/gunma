@@ -17,7 +17,7 @@ impl<'a> System<'a> for TakeAction {
         Read<'a, UserEntity>,
         Write<'a, Action>,
         Read<'a, ClientQueue>,
-        ReadStorage<'a, Player>,
+        WriteStorage<'a, Player>,
         ReadStorage<'a, Pos>,
         ReadStorage<'a, Size>,
         WriteStorage<'a, Vel>,
@@ -28,7 +28,7 @@ impl<'a> System<'a> for TakeAction {
 
     fn run(
         &mut self,
-        (e, user, mut act, queue, player, pos, siz, mut vel, acc, mut ori, lazy): Self::SystemData,
+        (e, user, mut act, queue, mut ply, pos, siz, mut vel, acc, mut ori, lazy): Self::SystemData,
     ) {
         if !act.update {
             return;
@@ -38,7 +38,7 @@ impl<'a> System<'a> for TakeAction {
 
         let pos = pos.get(ep).unwrap();
         let siz = siz.get(ep).unwrap();
-        let player = player.get(ep).unwrap();
+        let mut ply = ply.get_mut(ep).unwrap();
         let mut vel = vel.get_mut(ep).unwrap();
         let mut ori = ori.get_mut(ep).unwrap();
 
@@ -63,8 +63,8 @@ impl<'a> System<'a> for TakeAction {
                 Vel::new(10.0 * ori.x, 0.0),
                 *ori,
                 Size::new(30.0, 30.0),
-                AssetId::new(2),
-                player.bullet(1),
+                AssetId::new(100),
+                ply.bullet(1),
             );
         }
 

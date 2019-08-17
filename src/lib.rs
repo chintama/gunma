@@ -23,5 +23,5 @@ pub use crate::error::Result;
 pub use crate::systems::Systems;
 pub use crate::vector::Vector;
 
-pub use crate::client::screen::run_client;
-pub use crate::server::run_server;
+pub use crate::client::client::run_client;
+pub use crate::server::server::run_server;

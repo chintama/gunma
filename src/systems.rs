@@ -37,7 +37,7 @@ impl Systems {
         world.create_entity().create_terrain(
             Pos::new(0.0, 0.0),
             Size::new(1000.0, 100.0),
-            AssetId::new(100),
+            AssetId::new(200),
         );
 
         Ok(Self { world })

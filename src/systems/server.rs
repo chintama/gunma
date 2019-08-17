@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use crate::{
     components::*,
     entities::*,
@@ -8,6 +6,7 @@ use crate::{
 };
 use log::*;
 use specs::prelude::*;
+use std::collections::HashMap;
 
 pub struct Input;
 
@@ -15,86 +14,85 @@ impl<'a> System<'a> for Input {
     type SystemData = (
         Entities<'a>,
         Write<'a, ServerQueue>,
-        WriteStorage<'a, Player>,
         ReadStorage<'a, Pos>,
-        ReadStorage<'a, Size>,
         WriteStorage<'a, Vel>,
         ReadStorage<'a, Acc>,
         WriteStorage<'a, Ori>,
+        ReadStorage<'a, Size>,
+        WriteStorage<'a, Player>,
         Read<'a, LazyUpdate>,
     );
 
     fn run(
         &mut self,
-        (e, mut queue, mut player, pos, siz, mut vel, acc, mut ori, lazy): Self::SystemData,
+        (e, mut queue, pos, mut vel, acc, mut ori, siz, mut ply, lazy): Self::SystemData,
     ) {
-        // let mut players: HashMap<_, _> = (&pos, &siz, &mut vel, &acc, &mut ori, &mut player)
-        //     .join()
-        //     .map(|t| ((t.0).0, t))
-        //     .collect();
+        let mut players: HashMap<_, _> = (&mut ply, &pos, &mut vel, &acc, &mut ori, &siz)
+            .join()
+            .map(|t| (t.0.id, t))
+            .collect();
 
-        // for _ in 0..100 {
-        //     let item = queue.get().try_pop().unwrap();
+        for _ in 0..100 {
+            let item = queue.get().try_pop().unwrap();
 
-        //     match item {
-        //         Some((id, Event::Input(input))) => {
-        //             debug!("Receive client input: {:?}", input);
+            match item {
+                Some((id, Event::Input(input))) => {
+                    debug!("Receive client input: {:?}", input);
 
-        //             let (oid, cls, pos, siz, vel, acc, ori, player) =
-        //                 match players.get_mut(&input.id) {
-        //                     Some(t) => t,
-        //                     None => continue,
-        //                 };
+                    let (ply, pos, vel, acc, ori, siz) = match players.get_mut(&input.id) {
+                        Some(t) => t,
+                        None => continue,
+                    };
 
-        //             if input.action.jump {
-        //                 vel.y = 5.0;
-        //             }
+                    if input.act.jump {
+                        vel.y = 5.0;
+                    }
 
-        //             if input.action.right {
-        //                 vel.x = 5.0;
-        //                 ori.x = 1.0;
-        //             }
+                    if input.act.right {
+                        vel.x = 5.0;
+                        ori.x = 1.0;
+                    }
 
-        //             if input.action.left {
-        //                 vel.x = -5.0;
-        //                 ori.x = -1.0;
-        //             }
+                    if input.act.left {
+                        vel.x = -5.0;
+                        ori.x = -1.0;
+                    }
 
-        //             if input.action.take {
-        //                 let d = if ori.x > 0.0 { siz.x } else { -10.0 };
-        //                 player.0 += 1;
-        //                 lazy.create_entity(&e).create_bullet(
-        //                     ObjectId::new(oid.0, player.0),
-        //                     Class(cls.0),
-        //                     **pos + Vel::new(d, 0.0),
-        //                     Vel::new(10.0 * ori.x, 0.0),
-        //                     Damage(1),
-        //                     **ori,
-        //                 );
-        //             }
-        //         }
-        //         Some((id, Event::Login(login))) => {
-        //             let ack = Event::LoginAck(LoginAck::new(
-        //                 id,
-        //                 Pos::new(200.0, 200.0),
-        //                 Ori::new(1.0, 0.0),
-        //                 Lives::new(10),
-        //             ));
-        //             lazy.create_entity(&e).create_player(
-        //                 ObjectId::new(id, 0),
-        //                 Player(0),
-        //                 login.cls,
-        //                 Pos::new(200.0, 200.0),
-        //                 Lives::new(10),
-        //                 Ori::new(1.0, 0.0),
-        //             );
-        //             info!("Login accepted: {:?}", ack);
-        //             queue.get().push((id, ack)).unwrap();
-        //             info!("Pushed");
-        //         }
-        //         _ => break,
-        //     }
-        // }
+                    if input.act.take {
+                        let d = if ori.x > 0.0 { siz.x } else { -10.0 };
+                        lazy.create_entity(&e).create_bullet(
+                            **pos + Vel::new(d, 0.0),
+                            Vel::new(10.0 * ori.x, 0.0),
+                            **ori,
+                            Size::new(30.0, 30.0),
+                            AssetId::new(100),
+                            ply.bullet(1),
+                        );
+                    }
+                }
+                Some((id, Event::Login(login))) => {
+                    info!("Received login from channel: {}", id);
+                    let ps = PlayerState::new(
+                        0,
+                        Pos::new(200.0, 200.0),
+                        Vel::zero(),
+                        Acc::gravity(),
+                        Ori::new(1.0, 0.0),
+                        Size::new(50.0, 40.0),
+                        AssetId::new(1),
+                        Player::spawn(10, login.cls),
+                    );
+
+                    let ack = Event::LoginAck(LoginAck::new(ps.clone()));
+                    lazy.create_entity(&e).create_player_by_state(ps);
+
+                    info!("Login accepted: {:?}", ack);
+                    queue.get().push((id, ack)).unwrap();
+                    info!("Pushed");
+                }
+                _ => break,
+            }
+        }
     }
 }
 

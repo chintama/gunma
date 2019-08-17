@@ -2,6 +2,8 @@ use crate::systems::Systems;
 use log::*;
 
 pub fn run_server() {
+    info!("Running server");
+
     let mut sys = Systems::new().unwrap();
     sys.server_start();
 
