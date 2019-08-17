@@ -74,7 +74,7 @@ impl<'a> System<'a> for Input {
                     info!("Received login from channel: {}", id);
                     let ps = PlayerState::new(
                         0,
-                        Pos::new(200.0, 200.0),
+                        Pos::new(200.0, 2000.0),
                         Vel::zero(),
                         Acc::gravity(),
                         Ori::new(1.0, 0.0),

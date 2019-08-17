@@ -1,4 +1,6 @@
-use crate::{components::*, entities::*, error::Result, events::*, resources::*};
+use crate::{
+    components::*, entities::*, error::Result, events::*, resources::*, terrain::open_tdata_file,
+};
 use specs::prelude::*;
 
 use log::*;
@@ -34,6 +36,17 @@ impl Systems {
         world.insert(ServerQueue::default());
         world.insert(ClientQueue::default());
 
+        let td = open_tdata_file("/Users/yushiomote/dev/gunma/terrain.txt");
+
+        for t in td {
+            if t.blk {
+                world.create_entity().create_terrain(t.pos, t.siz, t.aid);
+            } else {
+                world.create_entity().create_background(t.pos, t.siz, t.aid);
+            }
+        }
+
+        /*
         for y in 0..4 {
             for x in 0..18 {
                 let xx = if x == 0 {
@@ -285,6 +298,7 @@ impl Systems {
                 AssetId::new(50000),
             );
         }
+        */
 
         Ok(Self { world })
     }

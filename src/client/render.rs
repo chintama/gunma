@@ -18,8 +18,8 @@ pub fn load_image(s: &str) -> Image {
 /// id = 1xxyy
 ///
 /// where:
-///   xx = x-coordinate in the sprite (0-4)
-///   yy = y-coordinate in the sprite (0-4)
+///   xx = x-coordinate in the sprite (0-3)
+///   yy = y-coordinate in the sprite (0-3)
 ///
 fn process_ground(img: &Image, assets: &mut AssetsMap) {
     let gnd = img.subimage(Rectangle::new((400.0, 400.0), (240.0, 240.0)));
@@ -39,7 +39,7 @@ fn process_ground(img: &Image, assets: &mut AssetsMap) {
 /// id = 2xx00
 ///
 /// where:
-///   xx = x-coordinate in the sprite (0-4)
+///   xx = x-coordinate in the sprite (0-3)
 ///
 fn process_plate(img: &Image, assets: &mut AssetsMap) {
     let plt = img.subimage(Rectangle::new((640.0, 240.0), (240.0, 75.0)));
@@ -114,7 +114,7 @@ fn process_bridge(img: &Image, assets: &mut AssetsMap) {
     let b = bdg.subimage(Rectangle::new((80.0, 0.0), (60.0, 40.0)));
     assets.insert(AssetId(50102), b);
 
-    // Lower 1,2,3
+    // Lower
     let b = bdg.subimage(Rectangle::new((80.0, 40.0), (60.0, 20.0)));
     assets.insert(AssetId(50000), b);
 }

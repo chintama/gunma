@@ -13,6 +13,7 @@ mod collide;
 mod config;
 mod error;
 mod systems;
+mod terrain;
 
 pub mod prelude {
     pub use crate::entities::CreateEntity;
