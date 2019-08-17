@@ -61,10 +61,32 @@ impl<'a, 'b> System<'a> for Render<'b> {
         };
 
         self.window.clear(Color::WHITE).unwrap();
+
+        // cloud
         let bgimg = self.img(AssetId(901)).unwrap();
         self.window.draw(
             &Rectangle::new(Vector::new(0.0, 0.0), Vector::new(800.0, 600.0)),
-            Blended(&bgimg, Color::from_rgba(250, 250, 250, 0.5)),
+            Img(&bgimg),
+        );
+
+        // water
+        let bgimg = self.img(AssetId(902)).unwrap();
+        self.window.draw(
+            &Rectangle::new(Vector::new(0.0, 0.0), Vector::new(800.0, 600.0)),
+            Img(&bgimg) //, Color::from_rgba(250, 250, 250, 0.5)),
+        );
+
+        let bgimg = self.img(AssetId(903)).unwrap();
+        self.window.draw(
+            &Rectangle::new(Vector::new(0.0, 0.0), Vector::new(800.0, 600.0)),
+            Img(&bgimg) //, Color::from_rgba(250, 250, 250, 0.5)),
+        );
+
+        // cloud
+        let bgimg = self.img(AssetId(904)).unwrap();
+        self.window.draw(
+            &Rectangle::new(Vector::new(0.0, 0.0), Vector::new(800.0, 400.0)),
+            Img(&bgimg),
         );
 
         let mut drw = |e, pos: &Pos, siz: &Size| {
