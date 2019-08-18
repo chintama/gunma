@@ -1,7 +1,51 @@
 use crate::components::AssetId;
+use derive_new::new;
 use log::*;
 use quicksilver::{geom::Rectangle, graphics::Image, prelude::*};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+#[derive(new, Serialize, Deserialize)]
+struct AssetInfo {
+    /// Path to image
+    image: String,
+    /// Info about how to crop
+    crop: Vec<CropInfo>,
+}
+
+#[derive(new, Serialize, Deserialize)]
+struct CropInfo {
+    /// Asset id
+    aid: AssetId,
+    /// Rectangle to crop
+    rect: (f32, f32, f32, f32),
+}
+
+#[derive(new)]
+struct Crop {
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+}
+
+impl Crop {
+    fn crop(&self, x: f32, y: f32, w: f32, h: f32) -> Self {
+        assert!(x + w <= self.w);
+        assert!(y + h <= self.h);
+
+        Self {
+            x: self.x + x,
+            y: self.y + y,
+            w,
+            h,
+        }
+    }
+
+    fn asset(&self, aid: AssetId) -> CropInfo {
+        CropInfo::new(aid, (self.x, self.y, self.w, self.h))
+    }
+}
 
 pub type AssetsMap = HashMap<AssetId, Image>;
 
@@ -33,6 +77,19 @@ fn process_ground(img: &Image, assets: &mut AssetsMap) {
     }
 }
 
+fn crop_ground_assets() -> Vec<CropInfo> {
+    let crop = Crop::new(400.0, 400.0, 240.0, 240.0);
+
+    (0..4)
+        .map(|y| (0..4).map(move |x| (x, y)))
+        .flatten()
+        .map(|(x, y)| {
+            crop.crop(x as f32 * 60.0, y as f32 * 60.0, 60.0, 60.0)
+                .asset(AssetId(10000 + x * 100 + y))
+        })
+        .collect()
+}
+
 ///
 /// Plate assets
 ///
@@ -52,6 +109,17 @@ fn process_plate(img: &Image, assets: &mut AssetsMap) {
     }
 }
 
+fn crop_plate_assets() -> Vec<CropInfo> {
+    let crop = Crop::new(400.0, 400.0, 240.0, 240.0);
+
+    (0..4)
+        .map(|x| {
+            crop.crop(x as f32 * 60.0, 0.0, 60.0, 75.0)
+                .asset(AssetId(20000 + x * 100))
+        })
+        .collect()
+}
+
 ///
 /// Tree asset
 ///
@@ -60,6 +128,10 @@ fn process_plate(img: &Image, assets: &mut AssetsMap) {
 fn process_tree(img: &Image, assets: &mut AssetsMap) {
     let tree = img.subimage(Rectangle::new((970.0, 405.0), (220.0, 315.0)));
     assets.insert(AssetId(30000), tree);
+}
+
+fn crop_tree_assets() -> Vec<CropInfo> {
+    vec![Crop::new(970.0, 405.0, 220.0, 315.0).asset(AssetId(30000))]
 }
 
 ///
@@ -93,6 +165,17 @@ fn process_grass(img: &Image, assets: &mut AssetsMap) {
     assets.insert(AssetId(40005), g);
 }
 
+fn crop_grass_assets() -> Vec<CropInfo> {
+    vec![
+        Crop::new(720.0, 690.0, 60.0, 30.0).asset(AssetId(40000)),
+        Crop::new(880.0, 695.0, 65.0, 25.0).asset(AssetId(40001)),
+        Crop::new(880.0, 765.0, 60.0, 35.0).asset(AssetId(40002)),
+        Crop::new(885.0, 845.0, 75.0, 35.0).asset(AssetId(40003)),
+        Crop::new(720.0, 770.0, 80.0, 30.0).asset(AssetId(40004)),
+        Crop::new(720.0, 885.0, 60.0, 25.0).asset(AssetId(40005)),
+    ]
+}
+
 ///
 /// Bridge assets
 ///
@@ -119,6 +202,17 @@ fn process_bridge(img: &Image, assets: &mut AssetsMap) {
     assets.insert(AssetId(50000), b);
 }
 
+fn crop_grass_bridge() -> Vec<CropInfo> {
+    let crop = Crop::new(0.0, 680.0, 160.0, 120.0);
+
+    vec![
+        crop.crop(55.0, 0.0, 60.0, 40.0).asset(AssetId(50100)),
+        crop.crop(65.0, 0.0, 60.0, 40.0).asset(AssetId(50101)),
+        crop.crop(80.0, 0.0, 60.0, 40.0).asset(AssetId(50102)),
+        crop.crop(80.0, 40.0, 60.0, 20.0).asset(AssetId(50000)),
+    ]
+}
+
 ///
 /// Ledge assets
 ///
@@ -135,6 +229,15 @@ fn process_ledge(img: &Image, assets: &mut AssetsMap) {
     assets.insert(AssetId(60000), b);
     let b = ldg.subimage(Rectangle::new((80.0, 0.0), (60.0, 60.0)));
     assets.insert(AssetId(60001), b);
+}
+
+fn crop_grass_ledge() -> Vec<CropInfo> {
+    let crop = Crop::new(720.0, 480.0, 160.0, 80.0);
+
+    vec![
+        crop.crop(20.0, 0.0, 60.0, 60.0).asset(AssetId(60000)),
+        crop.crop(80.0, 0.0, 60.0, 60.0).asset(AssetId(60001)),
+    ]
 }
 
 fn process_tilesets(assets: &mut AssetsMap) {
