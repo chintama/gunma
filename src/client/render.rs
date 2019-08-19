@@ -311,7 +311,7 @@ pub fn load_assets() -> AssetsMap {
 
     // process_tilesets(&mut assets);
 
-    assets.extend(read_assets("assets.txt"));
+    assets.extend(read_assets("assets.json"));
 
     assets.insert(AssetId(1), load_image("ferris.png"));
     assets.insert(AssetId(2), load_image("ferris-f.png"));

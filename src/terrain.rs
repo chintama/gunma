@@ -3,6 +3,10 @@ use derive_new::new;
 use log::*;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::{
+    fs::File,
+    io::{prelude::*, BufReader},
+};
 
 #[derive(new, Serialize, Deserialize)]
 pub struct Terrain {
@@ -50,18 +54,23 @@ impl Type for u8 {
     }
 }
 
-pub fn open_tdata_file(path: &str) -> Vec<Terrain> {
-    use std::{
-        fs::File,
-        io::{prelude::*, BufReader},
-    };
-
-    info!("Loading terrain data from: {}", path);
+pub fn parse_terrain(path: &str) -> Vec<Terrain> {
+    info!("Parsing terrain data from file: {}", path);
 
     let f = File::open(path).unwrap();
     let f = BufReader::new(f);
     let d: Vec<_> = f.lines().map(|l| l.unwrap().as_bytes().to_vec()).collect();
     parse_tdata(d)
+}
+
+pub fn read_terrain(path: &str) -> Vec<Terrain> {
+    let f = File::open(path).unwrap();
+    serde_json::from_reader(f).unwrap()
+}
+
+pub fn write_terrain(path: &str, t: Vec<Terrain>) {
+    let f = File::create(path).unwrap();
+    serde_json::to_writer(f, &t).unwrap();
 }
 
 pub fn parse_tdata(data: Vec<Vec<u8>>) -> Vec<Terrain> {

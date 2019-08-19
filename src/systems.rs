@@ -1,6 +1,11 @@
 use crate::{
-    client::render::*, components::*, entities::*, error::Result, events::*, resources::*,
-    terrain::open_tdata_file,
+    client::render::*,
+    components::*,
+    entities::*,
+    error::Result,
+    events::*,
+    resources::*,
+    terrain::{parse_terrain, read_terrain, write_terrain},
 };
 use specs::prelude::*;
 
@@ -37,8 +42,10 @@ impl Systems {
         world.insert(ServerQueue::default());
         world.insert(ClientQueue::default());
 
-        let td = open_tdata_file("terrain.txt");
+        write_assets("assets.json");
+        write_terrain("terrain.json", parse_terrain("terrain.txt"));
 
+        let td = read_terrain("terrain.json");
         for t in td {
             if t.blk {
                 world.create_entity().create_terrain(t.pos, t.siz, t.aid);
@@ -46,8 +53,6 @@ impl Systems {
                 world.create_entity().create_background(t.pos, t.siz, t.aid);
             }
         }
-
-        write_assets("assets.txt");
 
         /*
         for y in 0..4 {
