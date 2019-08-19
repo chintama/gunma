@@ -110,7 +110,7 @@ fn process_plate(img: &Image, assets: &mut AssetsMap) {
 }
 
 fn crop_plate_assets() -> Vec<CropInfo> {
-    let crop = Crop::new(400.0, 400.0, 240.0, 240.0);
+    let crop = Crop::new(640.0, 240.0, 240.0, 75.0);
 
     (0..4)
         .map(|x| {
@@ -202,7 +202,7 @@ fn process_bridge(img: &Image, assets: &mut AssetsMap) {
     assets.insert(AssetId(50000), b);
 }
 
-fn crop_grass_bridge() -> Vec<CropInfo> {
+fn crop_bridge_assets() -> Vec<CropInfo> {
     let crop = Crop::new(0.0, 680.0, 160.0, 120.0);
 
     vec![
@@ -231,7 +231,7 @@ fn process_ledge(img: &Image, assets: &mut AssetsMap) {
     assets.insert(AssetId(60001), b);
 }
 
-fn crop_grass_ledge() -> Vec<CropInfo> {
+fn crop_ledge_assets() -> Vec<CropInfo> {
     let crop = Crop::new(720.0, 480.0, 160.0, 80.0);
 
     vec![
@@ -251,10 +251,67 @@ fn process_tilesets(assets: &mut AssetsMap) {
     process_ledge(&img, assets);
 }
 
+fn gen_assets() -> Vec<AssetInfo> {
+    let gnd = AssetInfo::new(
+        "tileset.png".into(),
+        crop_ground_assets()
+            .into_iter()
+            .chain(crop_plate_assets())
+            .chain(crop_tree_assets())
+            .chain(crop_bridge_assets())
+            .chain(crop_grass_assets())
+            .chain(crop_ledge_assets())
+            .collect(),
+    );
+    vec![gnd]
+}
+
+pub fn write_assets(path: &str) {
+    let assets = serde_json::to_vec(&gen_assets()).unwrap();
+
+    use std::fs::File;
+    use std::io::prelude::*;
+    let mut f = File::create(path).unwrap();
+    f.write(&assets);
+}
+
+fn parse_assets(s: &[u8]) -> Vec<AssetInfo> {
+    serde_json::from_slice(s).unwrap()
+}
+
+fn import_assets(assets: Vec<AssetInfo>) -> AssetsMap {
+    assets
+        .into_iter()
+        .map(|a| {
+            let img = load_image(&a.image);
+
+            a.crop.into_iter().map(move |crop| {
+                let r = crop.rect;
+                let subimg = img.subimage(Rectangle::new((r.0, r.1), (r.2, r.3)));
+                (crop.aid, subimg)
+            })
+        })
+        .flatten()
+        .collect()
+}
+
+pub fn read_assets(path: &str) -> AssetsMap {
+    use std::fs::File;
+    use std::io::prelude::*;
+
+    let mut v = Vec::new();
+    let mut f = File::open(path).unwrap();
+    f.read_to_end(&mut v);
+
+    import_assets(parse_assets(&v))
+}
+
 pub fn load_assets() -> AssetsMap {
     let mut assets = HashMap::new();
 
-    process_tilesets(&mut assets);
+    // process_tilesets(&mut assets);
+
+    assets.extend(read_assets("assets.txt"));
 
     assets.insert(AssetId(1), load_image("ferris.png"));
     assets.insert(AssetId(2), load_image("ferris-f.png"));
