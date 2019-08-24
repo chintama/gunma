@@ -57,7 +57,7 @@ impl<'a, 'b> System<'a> for Render<'b> {
 
         let origin = {
             let pos = pos.get(ep).unwrap();
-            Pos::new(pos.x, 0.0)
+            Pos::new(pos.x, pos.y)
         };
 
         self.window.clear(Color::WHITE).unwrap();
