@@ -22,44 +22,14 @@ impl<'a> System<'a> for UpdatePos {
     }
 }
 
-// pub struct AdjustPos;
-
-// impl<'a> System<'a> for AdjustPos {
-//     type SystemData = (
-//         Entities<'a>,
-//         WriteStorage<'a, Pos>,
-//         WriteStorage<'a, Vel>,
-//         ReadStorage<'a, Acc>,
-//         ReadStorage<'a, Size>,
-//         WriteStorage<'a, Player>,
-//         ReadStorage<'a, Block>,
-//     );
-
-//     fn run(&mut self, (e, pos, mut vel, acc, siz, mut ply, blk): Self::SystemData) {
-//         for (e1, p1, s1, v1, ply) in (&e, &pos, &siz, &mut vel, &mut ply).join() {
-//             let mut land = false;
-
-//             for (e2, p2, s2, _) in (&e, &pos, &siz, &blk).join() {}
-//         }
-//     }
-// }
-
 pub struct UpdateVel;
 
 impl<'a> System<'a> for UpdateVel {
-    type SystemData = (
-        WriteStorage<'a, Vel>,
-        ReadStorage<'a, Acc>,
-        WriteStorage<'a, Player>,
-    );
+    type SystemData = (WriteStorage<'a, Vel>, ReadStorage<'a, Acc>);
 
-    fn run(&mut self, (mut vel, acc, mut ply): Self::SystemData) {
-        for (vel, acc, ply) in (&mut vel, &acc, ply.maybe()).join() {
-            if !ply.map(|p| p.land).unwrap_or(false) {
-                *vel += *acc;
-            } else {
-                vel.x *= 0.98;
-            }
+    fn run(&mut self, (mut vel, acc): Self::SystemData) {
+        for (vel, acc) in (&mut vel, &acc).join() {
+            *vel += *acc;
         }
     }
 }
