@@ -1,5 +1,5 @@
 use crate::{
-    collide::{collide, update_vel},
+    collide::{cease_vel, collide, update_vel},
     components::*,
 };
 use log::*;
@@ -9,14 +9,40 @@ use std::collections::HashMap;
 pub struct UpdatePos;
 
 impl<'a> System<'a> for UpdatePos {
-    type SystemData = (WriteStorage<'a, Pos>, ReadStorage<'a, Vel>);
+    type SystemData = (
+        WriteStorage<'a, Pos>,
+        ReadStorage<'a, Vel>,
+        ReadStorage<'a, Player>,
+    );
 
-    fn run(&mut self, (mut pos, vel): Self::SystemData) {
-        for (pos, vel) in (&mut pos, &vel).join() {
+    fn run(&mut self, (mut pos, vel, ply): Self::SystemData) {
+        for (pos, vel, _) in (&mut pos, &vel, !&ply).join() {
             *pos += *vel;
         }
     }
 }
+
+// pub struct AdjustPos;
+
+// impl<'a> System<'a> for AdjustPos {
+//     type SystemData = (
+//         Entities<'a>,
+//         WriteStorage<'a, Pos>,
+//         WriteStorage<'a, Vel>,
+//         ReadStorage<'a, Acc>,
+//         ReadStorage<'a, Size>,
+//         WriteStorage<'a, Player>,
+//         ReadStorage<'a, Block>,
+//     );
+
+//     fn run(&mut self, (e, pos, mut vel, acc, siz, mut ply, blk): Self::SystemData) {
+//         for (e1, p1, s1, v1, ply) in (&e, &pos, &siz, &mut vel, &mut ply).join() {
+//             let mut land = false;
+
+//             for (e2, p2, s2, _) in (&e, &pos, &siz, &blk).join() {}
+//         }
+//     }
+// }
 
 pub struct UpdateVel;
 
@@ -43,7 +69,7 @@ pub struct ReduceVel;
 impl<'a> System<'a> for ReduceVel {
     type SystemData = (
         Entities<'a>,
-        ReadStorage<'a, Pos>,
+        WriteStorage<'a, Pos>,
         WriteStorage<'a, Vel>,
         ReadStorage<'a, Acc>,
         ReadStorage<'a, Size>,
@@ -51,47 +77,39 @@ impl<'a> System<'a> for ReduceVel {
         ReadStorage<'a, Block>,
     );
 
-    fn run(&mut self, (e, pos, mut vel, acc, siz, mut ply, blk): Self::SystemData) {
-        let mut map = HashMap::<_, Vel>::new();
-
-        // Player v.s. block
-        for (e1, p1, s1, ply) in (&e, &pos, &siz, &mut ply).join() {
+    fn run(&mut self, (e, mut pos, mut vel, acc, siz, mut ply, blk): Self::SystemData) {
+        for (e1, p1, s1, v1, ply) in (&e, &pos, &siz, &mut vel, &mut ply).join() {
             let mut land = false;
 
             for (e2, p2, s2, _) in (&e, &pos, &siz, &blk).join() {
-                let z = Vel::zero();
-                let v1 = vel.get(e1).unwrap_or(&z);
-                let v2 = vel.get(e2).unwrap_or(&z);
+                let (n, v) = cease_vel(&p1, &s1, &v1, &p2, &s2);
 
-                let ((n, v1), (_, v2)) = update_vel(p1, s1, &v1, p2, s2, v2);
+                *v1 = v;
 
                 if let Some(n) = n {
                     if n.y < 0.0 {
                         land = true;
                     }
                 }
-
-                if let Some(vel) = map.get_mut(&e1) {
-                    *vel = vel.min(&v1);
-                } else {
-                    map.insert(e1, v1);
-                }
-                if let Some(vel) = map.get_mut(&e2) {
-                    *vel = vel.min(&v2);
-                } else {
-                    map.insert(e2, v2);
-                }
             }
 
             ply.land = land;
         }
 
-        for (e, v) in map {
-            match vel.get_mut(e) {
-                Some(vel) => {
-                    *vel = v;
-                }
-                None => {}
+        let mut newpos = HashMap::new();
+
+        for (e1, p1, s1, v1, ply) in (&e, &pos, &siz, &mut vel, &mut ply).join() {
+            for (e2, p2, s2, _) in (&e, &pos, &siz, &blk).join() {
+                let (v, _) = update_vel(p1, s1, v1, p2, s2, &Vel::zero());
+                *v1 = v;
+                newpos.insert(e1, *p1 + v);
+            }
+        }
+
+        for (e, np) in newpos {
+            let np = Pos::new(np.x.round(), np.y.round());
+            if let Some(pos) = pos.get_mut(e) {
+                *pos = np;
             }
         }
     }

@@ -32,7 +32,7 @@ pub fn normal(p1: &Pos, s1: &Size, p2: &Pos, s2: &Size) -> Option<Vel> {
     let m2 = Isometry::translation(m2.x, m2.y);
     let c2 = Cuboid::new((*s2 / 2.0).to_vec());
 
-    contact(&m1, &c1, &m2, &c2, 3.0).map(|c| {
+    contact(&m1, &c1, &m2, &c2, 0.0).map(|c| {
         let x = c.normal.as_ref()[0].round();
         let y = c.normal.as_ref()[1].round();
         Vel::new(x, y)
@@ -53,26 +53,19 @@ pub fn cease_vel(p1: &Pos, s1: &Size, v1: &Vel, p2: &Pos, s2: &Size) -> (Option<
 
             (Some(n), v)
         }
-        None => (None, Vel::zero()),
+        None => (None, v1.clone()),
     };
 
     res
 }
 
-pub fn update_vel(
-    p1: &Pos,
-    s1: &Size,
-    v1: &Vel,
-    p2: &Pos,
-    s2: &Size,
-    v2: &Vel,
-) -> ((Option<Vel>, Vel), (Option<Vel>, Vel)) {
+pub fn update_vel(p1: &Pos, s1: &Size, v1: &Vel, p2: &Pos, s2: &Size, v2: &Vel) -> (Vel, Vel) {
     let toi = toi(p1, s1, v1, p2, s2, v2);
 
-    if toi == 0.0 {
-        (cease_vel(p1, s1, v1, p2, s2), cease_vel(p2, s2, v2, p1, s1))
+    if toi > 0.0 && toi < 1.0 {
+        (*v1 * toi, *v2 * toi)
     } else {
-        ((None, *v1 * toi), (None, *v2 * toi))
+        (*v1, *v2)
     }
 }
 
