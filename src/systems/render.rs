@@ -27,7 +27,9 @@ impl<'a> Render<'a> {
 
     fn drw(&mut self, pos: Pos, siz: Size, origin: Pos, center: Pos, bg: Background) {
         let size = self.window.screen_size();
-        let pos = (Pos::new(pos.x, size.y - pos.y - siz.y) - origin) + center;
+        let relpos = (pos - origin) + center;
+        let y = size.y - (relpos.y + siz.y);
+        let pos = Pos::new(relpos.x, y);
         let pos = Vector::new(pos.x, pos.y);
         let siz = Vector::new(siz.x, siz.y);
         let rect = Rectangle::new(pos, siz);
@@ -53,7 +55,7 @@ impl<'a, 'b> System<'a> for Render<'b> {
         let ep = user.get().1;
 
         let center = self.window.screen_size() / 2.0;
-        let center = Pos::new(center.x, 0.0);
+        let center = Pos::new(center.x, center.y);
 
         let origin = {
             let pos = pos.get(ep).unwrap();
