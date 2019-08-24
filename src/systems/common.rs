@@ -9,15 +9,12 @@ use std::collections::HashMap;
 pub struct UpdatePos;
 
 impl<'a> System<'a> for UpdatePos {
-    type SystemData = (
-        WriteStorage<'a, Pos>,
-        ReadStorage<'a, Vel>,
-        ReadStorage<'a, Player>,
-    );
+    type SystemData = (WriteStorage<'a, Pos>, ReadStorage<'a, Vel>);
 
-    fn run(&mut self, (mut pos, vel, ply): Self::SystemData) {
-        for (pos, vel, _) in (&mut pos, &vel, !&ply).join() {
+    fn run(&mut self, (mut pos, vel): Self::SystemData) {
+        for (pos, vel) in (&mut pos, &vel).join() {
             *pos += *vel;
+            *pos = pos.round();
         }
     }
 }
@@ -66,20 +63,10 @@ impl<'a> System<'a> for ReduceVel {
             ply.land = land;
         }
 
-        let mut newpos = HashMap::new();
-
         for (e1, p1, s1, v1, ply) in (&e, &pos, &siz, &mut vel, &mut ply).join() {
             for (e2, p2, s2, _) in (&e, &pos, &siz, &blk).join() {
                 let (v, _) = update_vel(p1, s1, v1, p2, s2, &Vel::zero());
                 *v1 = v;
-                newpos.insert(e1, *p1 + v);
-            }
-        }
-
-        for (e, np) in newpos {
-            let np = Pos::new(np.x.round(), np.y.round());
-            if let Some(pos) = pos.get_mut(e) {
-                *pos = np;
             }
         }
     }

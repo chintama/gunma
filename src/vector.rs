@@ -67,6 +67,13 @@ macro_rules! impl_vector {
                 }
             }
 
+            pub fn round(&self) -> Self {
+                let x = (self.x() * 100.0).round() / 100.0;
+                let y = (self.y() * 100.0).round() / 100.0;
+
+                Self::new(x, y)
+            }
+
             pub fn to_vec(&self) -> ncollide2d::math::Vector<f32> {
                 use ncollide2d::math::Vector;
                 Vector::new(self.x, self.y)
